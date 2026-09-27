@@ -34,8 +34,9 @@ W = 240
 FONT = "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
 
 # --- ring geometry, from radial_ring.h defaults + per-screen overrides ---
-DIAL_RADIUS, DIAL_NEAR, DIAL_FAR = 76, 66, 24
-DIAL_SPREAD = 0.55  # RadialRing::setSpread on the home dial
+DIAL_RADIUS, DIAL_NEAR, DIAL_FAR = 84, 62, 34  # ui_dial.cpp RING_*
+DIAL_HUB = 96                                  # ui_dial.cpp HUB_SIZE
+DIAL_SPREAD = 0.3   # RadialRing::setSpread on the home dial
 ARC_SPREAD = 0.55   # ...and on the Jobs/Settings arcs
 
 
@@ -154,6 +155,24 @@ def icon(parts, cx, cy, kind, size, col):
     elif kind == "pause":
         rect(parts, cx - s * .5, cy - s * .6, s * .35, s * 1.2, 1, col)
         rect(parts, cx + s * .15, cy - s * .6, s * .35, s * 1.2, 1, col)
+    elif kind == "sdcard":  # stands in for LV_SYMBOL_SD_CARD on the Jobs item
+        parts.append('<path d="M%g %g h%g l%g %g v%g h-%g z" %s/>'
+                     % (cx - s * .45, cy - s * .8, s * .75, s * .35, s * .35, s * 1.25, s * 1.1, st))
+        for dx in (-.2, .05, .3):
+            parts.append('<path d="M%g %g v%g" %s/>' % (cx + s * dx, cy - s * .5, s * .35, st))
+    elif kind == "folder":
+        parts.append('<path d="M%g %g h%g l%g %g h%g v%g h-%g z" %s/>'
+                     % (cx - s * .85, cy - s * .6, s * .6, s * .15, s * .2, s * 1.1, s * 1.1, s * 1.7, st))
+    elif kind == "backspace":
+        parts.append('<path d="M%g %g h%g v%g h-%g l-%g -%g z" %s/>'
+                     % (cx - s * .4, cy - s * .55, s * 1.3, s * 1.1, s * 1.3, s * .5, s * .55, st))
+        parts.append('<path d="M%g %g l%g %g M%g %g l-%g %g" %s/>'
+                     % (cx - s * .05, cy - s * .25, s * .5, s * .5, cx + s * .45, cy - s * .25, s * .5, s * .5, st))
+    elif kind == "check":
+        parts.append('<path d="M%g %g l%g %g l%g -%g" %s/>' % (cx - s * .7, cy, s * .45, s * .45, s * .95, s * .9, st))
+    elif kind == "close":
+        parts.append('<path d="M%g %g l%g %g M%g %g l-%g %g" %s/>'
+                     % (cx - s * .6, cy - s * .6, s * 1.2, s * 1.2, cx + s * .6, cy - s * .6, s * 1.2, s * 1.2, st))
     elif kind == "back":
         parts.append('<path d="M%g %g l-%g %g l%g %g" %s/>' % (cx + s * .4, cy - s * .6, s * .7, s * .6, s * .7, s * .6, st))
 
@@ -238,10 +257,10 @@ def screen_home():
     head(p)
     # Must match DIAL_ITEMS in src/display/ui_dial.cpp:
     # Home XY, Jog, Pen, Jobs, Photo, E-Stop, Lights, Settings.
-    items = [("home", 0), ("target", 0), ("pen", 0), ("file", 0),
+    items = [("home", 0), ("target", 0), ("pen", 0), ("sdcard", 0),
              ("image", 0), ("stop", 1), ("bulb", 0), ("gear", 0)]
     full_ring(p, items, 0)
-    hub(p, 82, [("Home XY", -8, 14, TEXT, "600"), ("IDLE", 12, 12, TEXT_MUTED, "400")])
+    hub(p, DIAL_HUB, [("Home XY", -8, 14, TEXT, "600"), ("IDLE", 12, 12, TEXT_MUTED, "400")])
     tail(p)
     return "home-dial", p
 
@@ -249,7 +268,8 @@ def screen_home():
 def screen_jobs():
     p = []
     head(p)
-    arc_ring(p, ["file"] * 7, 2, 30.0, 132.0)
+    # A folder or two ahead of the files, as an SD root usually lists them.
+    arc_ring(p, ["folder", "folder", "file", "file", "file", "file", "file"], 2, 30.0, 132.0)
     hub(p, 96, [("flow_red.gcode", -18, 11, TEXT, "600"),
                 ("8.2 MB", 4, 12, TEXT_MUTED, "400")])
     icon(p, 106, 144, "play", 11, ACCENT)
@@ -475,21 +495,53 @@ def screen_brand():
 
 
 def screen_keyboard():
+    """radial_keyboard.cpp: the ring turns so the selected key sits at the
+    top. Keys get a share of the circle by width (keyWeight), the spread
+    opens the top, and keys shrink and fade in bands with distance
+    (fontForKey) -- all mirrored here."""
     p = []
     head(p)
-    keys = list("abcdefghijklmnopqrstuvwxyz") + ["ABC", "SP", "<x", "OK"]
+    radius, spread, opa_far = 100, 0.35, 110 / 255.0
+    # Page one of a password field: letters, then the action keys.
+    keys = [(c, "char") for c in "abcdefghijklmnopqrstuvwxyz"] + [
+        ("ABC", "word"), ("SP", "word"), ("backspace", "icon"),
+        ("eye", "icon"), ("check", "icon"), ("close", "icon")]
+    weight = {"char": 1.0, "icon": 1.3, "word": 1.6}
     sel = 7
-    n = len(keys)
-    for i, k in enumerate(keys):
-        ang = math.radians(-90 + 360.0 * i / n)
-        cx, cy = 120 + 98 * math.cos(ang), 120 + 98 * math.sin(ang)
-        if i == sel:
-            text(p, cx, cy, k, 20, ACCENT, "700")
+
+    total = sum(weight[k] for _, k in keys)
+    centres, acc = [], 0.0
+    for _, kind in keys:
+        centres.append(360.0 * (acc - weight[keys[0][1]] / 2 + weight[kind] / 2) / total)
+        acc += weight[kind]
+
+    def font_px(kind, is_sel, nearness):
+        if kind == "word":
+            return 24 if is_sel else (14 if nearness > 0.6 else 12)
+        if kind == "icon":
+            return 24 if is_sel else (16 if nearness > 0.6 else 14 if nearness > 0.3 else 12)
+        return 32 if is_sel else (18 if nearness > 0.6 else 14 if nearness > 0.3 else 12)
+
+    for i, (label, kind) in enumerate(keys):
+        ang = (centres[i] - centres[sel] + 180) % 360 - 180
+        ang = spread_angle(ang, spread)
+        nearness = 1 - abs(ang) / 180.0
+        rad = math.radians(ang)
+        cx, cy = 120 + radius * math.sin(rad), 120 - radius * math.cos(rad)
+        is_sel = i == sel
+        px = font_px(kind, is_sel, nearness)
+        col = ACCENT if is_sel else TEXT_MUTED
+        opa = 1.0 if is_sel else opa_far + (1 - opa_far) * nearness
+        p.append('<g opacity="%.3f">' % opa)
+        if kind == "icon":
+            icon(p, cx, cy, label, px * .8, col)
         else:
-            text(p, cx, cy, k, 11, TEXT_MUTED)
-    hub(p, 104, [("Password", -30, 12, TEXT_MUTED, "400"),
-                 ("*******", -8, 14, TEXT, "600"),
-                 ("h", 24, 16, ACCENT, "700")])
+            text(p, cx, cy, label, px, col, "600" if is_sel else "400")
+        p.append("</g>")
+
+    hub(p, 156, [("Password", -42, 14, TEXT_MUTED, "400"),
+                 ("******g", -10, 18, TEXT, "600"),
+                 ("h", 30, 24, ACCENT, "700")])
     tail(p)
     return "radial-keyboard", p
 
