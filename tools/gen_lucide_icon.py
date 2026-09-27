@@ -98,29 +98,8 @@ def build_lightbulb():
     return paths
 
 
-# lucide.dev/icons/folder
-#   <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9
-#            L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
-def build_folder():
-    outline = []
-    outline += arc((20, 20), (22, 18), 2, 0, 0)       # bottom-right corner
-    outline += [(22, 8)]                              # right side
-    outline += arc((22, 8), (20, 6), 2, 0, 0)         # top-right corner
-    outline += [(12.1, 6)]                            # top edge, back to the tab
-    outline += arc((12.1, 6), (10.41, 5.1), 2, 0, 1)  # tab step, lower bend
-    outline += [(9.6, 3.9)]                           # tab slope
-    outline += arc((9.6, 3.9), (7.93, 3), 2, 0, 0)    # tab step, upper bend
-    outline += [(4, 3)]                               # tab top
-    outline += arc((4, 3), (2, 5), 2, 0, 0)           # top-left corner
-    outline += [(2, 18)]                              # left side
-    outline += arc((2, 18), (4, 20), 2, 0, 0)         # bottom-left corner
-    outline += [(20, 20)]                             # Z: bottom edge
-    return [outline]
-
-
 ICONS = {
     "lightbulb": build_lightbulb,
-    "folder": build_folder,
 }
 
 

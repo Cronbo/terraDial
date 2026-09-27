@@ -2,7 +2,6 @@
 #include "palette.h"
 #include "radial_ring.h"
 #include "icon_lightbulb.h"
-#include "icon_folder.h"
 #include "ui_widgets.h"
 #include <string.h>
 
@@ -72,9 +71,10 @@ namespace
         {"Home XY", LV_SYMBOL_HOME, nullptr, nullptr, false},
         {"Jog", LV_SYMBOL_GPS, nullptr, nullptr, false},
         {"Pen", LV_SYMBOL_EDIT, nullptr, nullptr, false},
-        // Lucide folder rather than the symbol font's file glyph: Jobs is a
-        // browser now, folders and all.
-        {"Jobs", nullptr, &iconFolder, &iconFolderLarge, false},
+        // An SD card, not a folder: inside Jobs, folders are chips of their
+        // own, and the same picture shouldn't mean both "this screen" and
+        // "a folder on it".
+        {"Jobs", LV_SYMBOL_SD_CARD, nullptr, nullptr, false},
         // Directly after Jobs because that is where it falls in a session:
         // you run the plot, watch it finish, then park to photograph it.
         {"Photo", LV_SYMBOL_IMAGE, nullptr, nullptr, false},
