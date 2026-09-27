@@ -247,9 +247,40 @@ void FluidNCClient::update()
     servicePendingHome(); // may enqueue, so before the drain
     drainCommandQueue();
     wsClient.loop();
-    if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    if (fileListRequested_)
     {
-        sdFiles_.checkTimeout();
+        fileListRequested_ = false;
+        fetchFileList();
+    }
+}
+
+// Blocks the network task for the length of one HTTP request, which is
+// what this task is for (see the class comment). The timeout is generous
+// because FluidNC can be slow on the first SD access after boot.
+void FluidNCClient::fetchFileList()
+{
+    HTTPClient http;
+    http.setTimeout(10000);
+    http.setConnectTimeout(3000);
+    char url[64];
+    snprintf(url, sizeof(url), "http://%s:%u/upload?path=/", resolvedIp_.toString().c_str(), httpPort_);
+    String body;
+    int code = -1;
+    if (http.begin(url))
+    {
+        code = http.GET();
+        if (code == HTTP_CODE_OK) body = http.getString();
+        http.end();
+    }
+
+    if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        if (body.length()) sdFiles_.setResponse(body);
+        else
+        {
+            Serial.printf("[fluidnc] SD file list request failed (HTTP %d)\n", code);
+            sdFiles_.fail();
+        }
         xSemaphoreGive(fileMutex_);
     }
 }
@@ -261,6 +292,7 @@ void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
         case WStype_CONNECTED:
             Serial.println("[fluidnc] websocket connected");
             status_.connected = true;
+            lineLen_ = 0; // never glue a fresh connection onto a half-received line
             // Re-issued on every (re)connect -- auto-reporting is per-channel
             // and FluidNC forgets it across disconnects.
             sendLine("$Report/Interval=100");
@@ -276,30 +308,30 @@ void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
             status_.lastFailure = true;
             status_.mode = MachineMode::Boot;
             status_.havePos = false;
-            if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
-            {
-                sdFiles_.abort();
-                xSemaphoreGive(fileMutex_);
-            }
+            lineLen_ = 0;
             break;
 
+        // A whole message ends a line even without a trailing newline:
+        // FluidNC 4.x sends some messages ("currentID:1", "PING:...") as
+        // bare frames, and running them together glued the next status
+        // report onto the end of them, where it went unparsed.
         case WStype_TEXT:
         case WStype_BIN:
-        // A message too large for one WebSocket frame arrives as separate
-        // fragment events instead of TEXT/BIN -- the SD file listing is the
-        // one response big enough to hit this (everything else: status
-        // reports, command acks, is small enough to always land as a single
-        // TEXT/BIN frame). ingest() just accumulates raw bytes into a line
-        // buffer regardless of frame boundaries, so fragments feed through
-        // it exactly like TEXT/BIN; without these cases every fragmented
-        // message -- in practice, only the file listing -- was silently
-        // dropped, which is why Jobs always timed out with literally no
-        // data captured while everything else worked fine.
+            ingest((const char *)payload, length);
+            endLine();
+            break;
+
+        // A message too large for one frame arrives in fragments; the line
+        // ends with the last one. Without these cases a fragmented message
+        // was dropped outright.
         case WStype_FRAGMENT_TEXT_START:
         case WStype_FRAGMENT_BIN_START:
         case WStype_FRAGMENT:
+            ingest((const char *)payload, length);
+            break;
         case WStype_FRAGMENT_FIN:
             ingest((const char *)payload, length);
+            endLine();
             break;
 
         default:
@@ -323,6 +355,14 @@ void FluidNCClient::sendLine(const String &line)
     wsClient.sendTXT(line + "\n");
 }
 
+void FluidNCClient::endLine()
+{
+    if (!lineLen_) return;
+    lineBuf_[lineLen_] = '\0';
+    handleLine(lineBuf_);
+    lineLen_ = 0;
+}
+
 void FluidNCClient::ingest(const char *data, size_t len)
 {
     for (size_t i = 0; i < len; i++)
@@ -330,12 +370,7 @@ void FluidNCClient::ingest(const char *data, size_t len)
         char c = data[i];
         if (c == '\n' || c == '\r')
         {
-            if (lineLen_)
-            {
-                lineBuf_[lineLen_] = '\0';
-                handleLine(lineBuf_);
-                lineLen_ = 0;
-            }
+            endLine();
         }
         else if (lineLen_ < sizeof(lineBuf_) - 1)
         {
@@ -396,27 +431,14 @@ void FluidNCClient::noteMessage(const char *line)
 
 void FluidNCClient::handleLine(char *line)
 {
-    // Auto-reporting (`$Report/Interval=100`) keeps sending realtime status
-    // lines on this same channel throughout a file-list capture -- those
-    // must still flow through to the normal status parsing below, not get
-    // appended to the JSON buffer (which would both corrupt the JSON and,
-    // if it ever prevented us from recognizing "ok", grow the buffer
-    // forever). Only non-status lines are treated as part of the capture.
-    if (sdFiles_.isCapturing() && line[0] != '<')
-    {
-        // FluidNC's JSONencoder flushes at structural boundaries (each
-        // array element, each object close), so the `$SD/ListJSON` response
-        // arrives as many separate lines that only form valid JSON once
-        // concatenated -- SdFileList accumulates until the trailing
-        // "ok"/"error:" that FluidNC's Channel::ack() sends after every
-        // command completes.
-        if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
-        {
-            sdFiles_.feedLine(line);
-            xSemaphoreGive(fileMutex_);
-        }
+    // WebUI session bookkeeping FluidNC 4.x sends every WebSocket client
+    // (the same list terraForge ignores). Not machine messages -- and
+    // logging them let "PING" overwrite the last real message on the
+    // alarm screen.
+    if (!strncmp(line, "PING", 4) || !strncasecmp(line, "currentID:", 10) ||
+        !strncasecmp(line, "activeID:", 9) || !strncmp(line, "CURRENT_ID:", 11) ||
+        !strncmp(line, "ACTIVE_ID:", 10))
         return;
-    }
 
     // Everything that isn't a status report is an ack: "ok", "error:N",
     // "ALARM:N" or an "[MSG:...]". Nothing here parses them, but they are
@@ -583,9 +605,9 @@ void FluidNCClient::requestFileList()
         sdFiles_.beginCapture();
         xSemaphoreGive(fileMutex_);
     }
-    // Unencapsulated JSON (no [MSG:JSON:...] wrapper, unlike Files/ListGCode)
-    // -- non-recursive listing of the SD root.
-    enqueue(false, "$SD/ListJSON=/");
+    // Fetched over HTTP by the network task -- see SdFileList for why not
+    // `$SD/ListJSON` over the socket.
+    fileListRequested_ = true;
 }
 
 void FluidNCClient::runFile(const char *filename)

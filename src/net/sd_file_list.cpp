@@ -18,61 +18,39 @@ namespace
 
 void SdFileList::beginCapture()
 {
-    buffer_ = "";
     ready_ = false;
     capturing_ = true;
-    requestedAt_ = millis();
-    Serial.println("[fluidnc] requesting SD file list ($SD/ListJSON=/)");
+    Serial.println("[fluidnc] requesting SD file list (GET /upload?path=/)");
 }
 
-void SdFileList::feedLine(const char *line)
+void SdFileList::setResponse(const String &body)
 {
-    Serial.printf("[fluidnc] SD list capture line: %s\n", line);
-
-    if (!strcmp(line, "ok") || !strncmp(line, "error:", 6))
-    {
-        capturing_ = false;
-        parseJson();
-        return;
-    }
-
-    buffer_ += line;
-    if (buffer_.length() > MAX_BUFFER_BYTES)
-    {
-        // Safety net: whatever is preventing the "ok"/"error:" terminator
-        // from being recognized, never let this grow unbounded and
-        // exhaust heap.
-        Serial.println("[fluidnc] file list response exceeded size cap, aborting capture");
-        capturing_ = false;
-        buffer_ = "";
-        ready_ = true;
-    }
-}
-
-void SdFileList::checkTimeout()
-{
-    if (!capturing_) return;
-    if (millis() - requestedAt_ <= TIMEOUT_MS) return;
-
-    Serial.printf("[fluidnc] file list request timed out, aborting capture (buffered %u bytes: %s)\n",
-                  (unsigned)buffer_.length(), buffer_.c_str());
     capturing_ = false;
-    buffer_ = "";
+    parseJson(body);
+}
+
+void SdFileList::fail()
+{
+    capturing_ = false;
+    count_ = 0;
     ready_ = true;
 }
 
-void SdFileList::parseJson()
+void SdFileList::parseJson(const String &body)
 {
     count_ = 0;
 
-    Serial.printf("[fluidnc] file list raw response (%u bytes): %s\n",
-                  (unsigned)buffer_.length(), buffer_.c_str());
+    // Only name and size are used -- filtering keeps the document small
+    // however much else (dates, short names, storage stats) FluidNC sends.
+    JsonDocument filter;
+    filter["files"][0]["name"] = true;
+    filter["files"][0]["size"] = true;
 
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, buffer_);
+    DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
     if (err)
     {
-        Serial.printf("[fluidnc] file list JSON parse failed: %s\n", err.c_str());
+        Serial.printf("[fluidnc] file list JSON parse failed: %s (%u bytes)\n", err.c_str(), (unsigned)body.length());
         ready_ = true;
         return;
     }
