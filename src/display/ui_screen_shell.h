@@ -28,7 +28,11 @@ ScreenShell createScreenShell(const char *title, const char *icon);
 // createScreenShell() adds this itself; screens that build their own root
 // instead of using the shell (Jog/Files/Settings/Job Progress/E-Stop/Alarm
 // Clear) call this directly on their own screen object.
-void addBackButton(lv_obj_t *screen);
+//
+// onBack replaces goHome() for a screen with levels of its own to step
+// back through first (Jobs, inside a folder) -- the same thing the knob's
+// long-press does there.
+void addBackButton(lv_obj_t *screen, lv_event_cb_t onBack = nullptr);
 
 // Small red stop pip, sitting to the left of the back button. For screens
 // that can put the machine in motion under your hand: from those, reaching

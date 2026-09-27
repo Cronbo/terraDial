@@ -124,7 +124,9 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_set_style_text_font(filenameLbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(filenameLbl, Palette::textMuted(), 0);
     lv_obj_set_width(filenameLbl, 160);
-    lv_label_set_long_mode(filenameLbl, LV_LABEL_LONG_DOT);
+    // Scrolls, like the Jobs hub: names routinely differ only at the end
+    // ("drawing 1" / "drawing 2"), which is exactly what "..." would hide.
+    lv_label_set_long_mode(filenameLbl, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_align(filenameLbl, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(filenameLbl, LV_ALIGN_CENTER, 0, -56);
 
@@ -219,7 +221,10 @@ void uiJobProgressUpdate(const FluidNCStatus &st)
         lv_label_set_text(timingLbl, line);
     }
 
-    lv_label_set_text(filenameLbl, st.jobFilename[0] ? st.jobFilename : "--");
+    // Only on a change: setting a scrolling label's text restarts its
+    // scroll, and this runs on every status update.
+    const char *name = st.jobFilename[0] ? st.jobFilename : "--";
+    if (strcmp(lv_label_get_text(filenameLbl), name) != 0) lv_label_set_text(filenameLbl, name);
     lv_label_set_text(pauseLbl, st.mode == MachineMode::Hold ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE);
 }
 

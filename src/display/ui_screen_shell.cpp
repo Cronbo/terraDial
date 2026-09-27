@@ -8,7 +8,7 @@ namespace
     void estopPipCb(lv_event_t *e) { (void)e; UiNav::goEstop(); }
 }
 
-void addBackButton(lv_obj_t *screen)
+void addBackButton(lv_obj_t *screen, lv_event_cb_t onBack)
 {
     // y=-10 from the bottom edge (screen center to button center distance
     // ~110px) -- inside the round panel's ~120px visible radius, matching
@@ -20,7 +20,7 @@ void addBackButton(lv_obj_t *screen)
     lv_obj_set_style_bg_color(btn, Palette::bgSecondary(), 0);
     lv_obj_set_ext_click_area(btn, 10); // easier to hit near the curved bezel
     lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -8);
-    lv_obj_add_event_cb(btn, backBtnCb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn, onBack ? onBack : backBtnCb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, LV_SYMBOL_LEFT);

@@ -12,6 +12,9 @@ void uiFilesHandleSelect();                  // run the centered card's file dir
 void uiFilesHandleDoubleClick();             // open the Run/Delete/Cancel confirm instead
                                               // (long-press stays the universal "back", so
                                               // it's not reused here)
+// Back (knob long-press). Steps up one folder and returns true, or returns
+// false at the SD root -- ui_nav should only leave the screen then.
+bool uiFilesHandleBack();
 
 // Call every loop iteration: checks for a completed SD listing and
 // rebuilds the ring chips when one arrives.
