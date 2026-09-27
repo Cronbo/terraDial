@@ -104,8 +104,8 @@ public:
     void deleteFile(const char *filename);              // $SD/Delete=<file>
     void sendGcodeLine(const char *line);                // arbitrary line (pen macros, etc.)
 
-    // SD file listing. requestFileList() sends `$SD/ListJSON=/` and starts
-    // capturing the (multi-line) JSON response; poll fileListReady() and
+    // SD file listing. requestFileList() asks the network task to fetch
+    // the listing over HTTP (see SdFileList); poll fileListReady() and
     // call clearFileListReady() once you've read the results via
     // fileListCount()/fileListEntry(). Only files with a recognized G-code
     // extension are kept; directories are skipped (flat pendant list, no
@@ -143,6 +143,7 @@ private:
     // port and 81 until one connects.
     bool wsPortGuessed_ = false;
     uint32_t wsBeganAt_ = 0;
+    volatile bool fileListRequested_ = false; // set by the UI task, fetched by networkTask
 
     char lineBuf_[192];
     size_t lineLen_ = 0;
@@ -185,6 +186,8 @@ private:
     bool resolveHost();
     uint16_t probeWsPort();
     void openSocket();
+    void fetchFileList();
+    void endLine();
     void sendRaw(const char *s);
     void sendLine(const String &line);
     void ingest(const char *data, size_t len);
