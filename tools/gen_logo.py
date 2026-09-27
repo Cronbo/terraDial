@@ -3,8 +3,8 @@
 
 Source: theworkisthework/terrapen-identity, Logo/TP-Logo-Animated.svg -- a
 single continuous stroked path (fill:none, stroke-width 3 on a 450 viewBox),
-which is why this can reuse the same flatten-and-distance-test approach as
-gen_lucide_icon.py rather than needing a real fill rasteriser. The animation
+which is why a simple flatten-and-distance-test stroker is enough here
+rather than needing a real fill rasteriser. The animation
 in the source (a dot tracing the path) is ignored; we want the finished mark.
 
 Alpha-only output means the mark carries no colour of its own and LVGL tints

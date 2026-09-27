@@ -1,4 +1,5 @@
 #include "ui_widgets.h"
+#include "lucide_icons.h"
 #include "palette.h"
 
 lv_obj_t *uiMakeRow(lv_obj_t *parent, const char *labelText, lv_obj_t **outLabel)
@@ -130,9 +131,10 @@ const lv_font_t *uiRingIconFont(UiRingIconSize size)
 {
     switch (size)
     {
-        case UiRingIconLarge:  return &lv_font_montserrat_32;
-        case UiRingIconMedium: return &lv_font_montserrat_24;
+        // Lucide fonts: the ring icons are LUCIDE_* glyphs (lucide_icons.h).
+        case UiRingIconLarge:  return &lucide_32;
+        case UiRingIconMedium: return &lucide_24;
         case UiRingIconSmall:
-        default:               return &lv_font_montserrat_14;
+        default:               return &lucide_14;
     }
 }

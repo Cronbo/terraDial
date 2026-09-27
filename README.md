@@ -318,3 +318,13 @@ Some notes worth knowing before changing things:
 
 MIT — see [LICENSE](LICENSE). Same licence as its parent project
 [terraForge](https://github.com/theworkisthework/terraForge).
+
+### Third-party
+
+The firmware image also contains third-party libraries, fonts and icons —
+LVGL, LovyanGFX, ArduinoJson, arduinoWebSockets (LGPL-2.1), Adafruit NeoPixel
+(LGPL-3.0), the Arduino core for ESP32 and ESP-IDF, Montserrat, Font Awesome
+and [Lucide](https://lucide.dev) icons (some derived from Feather). Their
+licences and copyright notices are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), with full texts in
+[`licenses/`](licenses/).

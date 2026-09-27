@@ -1,4 +1,5 @@
 #include "ui_job_progress.h"
+#include "lucide_icons.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
 #include <stdio.h>
@@ -150,7 +151,8 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_align(pauseBtn, LV_ALIGN_CENTER, -34, 44);
     lv_obj_add_event_cb(pauseBtn, pauseBtnCb, LV_EVENT_CLICKED, NULL);
     pauseLbl = lv_label_create(pauseBtn);
-    lv_label_set_text(pauseLbl, LV_SYMBOL_PAUSE);
+    lv_label_set_text(pauseLbl, LUCIDE_PAUSE);
+    lv_obj_set_style_text_font(pauseLbl, &lucide_24, 0);
     lv_obj_center(pauseLbl);
 
     lv_obj_t *stopBtn = lv_btn_create(scr);
@@ -160,7 +162,8 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_align(stopBtn, LV_ALIGN_CENTER, 34, 44);
     lv_obj_add_event_cb(stopBtn, stopBtnCb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *stopLbl = lv_label_create(stopBtn);
-    lv_label_set_text(stopLbl, LV_SYMBOL_STOP);
+    lv_label_set_text(stopLbl, LUCIDE_SQUARE);
+    lv_obj_set_style_text_font(stopLbl, &lucide_24, 0);
     lv_obj_set_style_text_color(stopLbl, Palette::accentFg(), 0);
     lv_obj_center(stopLbl);
 
@@ -225,7 +228,7 @@ void uiJobProgressUpdate(const FluidNCStatus &st)
     // scroll, and this runs on every status update.
     const char *name = st.jobFilename[0] ? st.jobFilename : "--";
     if (strcmp(lv_label_get_text(filenameLbl), name) != 0) lv_label_set_text(filenameLbl, name);
-    lv_label_set_text(pauseLbl, st.mode == MachineMode::Hold ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE);
+    lv_label_set_text(pauseLbl, st.mode == MachineMode::Hold ? LUCIDE_PLAY : LUCIDE_PAUSE);
 }
 
 void uiJobProgressTogglePause()

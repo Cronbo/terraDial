@@ -1,4 +1,5 @@
 #include "ui_settings.h"
+#include "lucide_icons.h"
 #include "../config/settings.h"
 #include "../net/wifi_manager.h"
 #include "../net/fluidnc_client.h"
@@ -57,7 +58,7 @@ namespace
 
     const char *CATEGORY_NAMES[CATEGORY_COUNT] = {"Wi-Fi", "Machine", "Display", "About"};
     const char *CATEGORY_ICONS[CATEGORY_COUNT] = {
-        LV_SYMBOL_WIFI, LV_SYMBOL_DRIVE, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LIST};
+        LUCIDE_WIFI, LUCIDE_SLIDERS_HORIZONTAL, LUCIDE_MONITOR, LUCIDE_INFO};
 
     // Which icon size each chip is drawn at -- see uiRingIconSize.
     UiRingIconSize iconSize[CATEGORY_COUNT] = {UiRingIconSmall};
@@ -135,7 +136,7 @@ namespace
         if (ssid[0] == '\0')
             snprintf(buf, sizeof(buf), "SSID: (tap to choose)");
         else
-            snprintf(buf, sizeof(buf), "SSID: %s " LV_SYMBOL_RIGHT, ssid);
+            snprintf(buf, sizeof(buf), "SSID: %s " LUCIDE_CHEVRON_RIGHT, ssid);
         lv_label_set_text(ssidLbl, buf);
 
         // Nothing to forget without a network.
@@ -265,7 +266,8 @@ namespace
         lv_label_set_text(scanStatusLbl, "");
         for (int i = 0; i < n; i++)
         {
-            lv_obj_t *btn = lv_list_add_btn(scanList, LV_SYMBOL_WIFI, WiFi.SSID(i).c_str());
+            lv_obj_t *btn = lv_list_add_btn(scanList, LUCIDE_WIFI, WiFi.SSID(i).c_str());
+            lv_obj_set_style_text_font(btn, &lucide_16, 0); // icon + SSID, inherited by both labels
             lv_obj_add_event_cb(btn, networkPickedCb, LV_EVENT_CLICKED, NULL);
         }
         WiFi.scanDelete();
@@ -303,8 +305,8 @@ namespace
         lv_obj_align(cancelBtn, LV_ALIGN_TOP_MID, 0, 14);
         lv_obj_add_event_cb(cancelBtn, scanCancelCb, LV_EVENT_CLICKED, NULL);
         lv_obj_t *cancelLbl = lv_label_create(cancelBtn);
-        lv_label_set_text(cancelLbl, LV_SYMBOL_CLOSE);
-        lv_obj_set_style_text_font(cancelLbl, &lv_font_montserrat_12, 0);
+        lv_label_set_text(cancelLbl, LUCIDE_X);
+        lv_obj_set_style_text_font(cancelLbl, &lucide_12, 0);
         lv_obj_center(cancelLbl);
 
         lv_obj_t *titleLbl = lv_label_create(scanOverlay);
@@ -408,7 +410,7 @@ namespace
         lv_obj_t *card = makeCardShell("WI-FI");
 
         ssidLbl = lv_label_create(card);
-        lv_obj_set_style_text_font(ssidLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_font(ssidLbl, &lucide_12, 0); // text + a chevron
         lv_obj_add_flag(ssidLbl, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(ssidLbl, ssidCb, LV_EVENT_CLICKED, NULL);
         refreshSsidLabel();
@@ -1067,7 +1069,8 @@ lv_obj_t *uiSettingsCreate()
     lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -8);
     lv_obj_add_event_cb(back, backBtnCb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *backLbl = lv_label_create(back);
-    lv_label_set_text(backLbl, LV_SYMBOL_LEFT);
+    lv_label_set_text(backLbl, LUCIDE_CHEVRON_LEFT);
+    lv_obj_set_style_text_font(backLbl, &lucide_16, 0);
     lv_obj_set_style_text_color(backLbl, Palette::textMuted(), 0);
     lv_obj_center(backLbl);
 
