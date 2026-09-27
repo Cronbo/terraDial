@@ -1,4 +1,5 @@
 #include "ui_screen_shell.h"
+#include "lucide_icons.h"
 #include "palette.h"
 #include "ui_nav.h"
 
@@ -23,7 +24,8 @@ void addBackButton(lv_obj_t *screen, lv_event_cb_t onBack)
     lv_obj_add_event_cb(btn, onBack ? onBack : backBtnCb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, LV_SYMBOL_LEFT);
+    lv_label_set_text(lbl, LUCIDE_CHEVRON_LEFT);
+    lv_obj_set_style_text_font(lbl, &lucide_16, 0);
     lv_obj_set_style_text_color(lbl, Palette::textMuted(), 0);
     lv_obj_center(lbl);
 }
@@ -47,8 +49,8 @@ void addEstopButton(lv_obj_t *screen)
     lv_obj_add_event_cb(btn, estopPipCb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, LV_SYMBOL_STOP);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+    lv_label_set_text(lbl, LUCIDE_OCTAGON_X); // the dial's E-Stop icon
+    lv_obj_set_style_text_font(lbl, &lucide_12, 0);
     lv_obj_set_style_text_color(lbl, Palette::accentFg(), 0);
     lv_obj_center(lbl);
 }
@@ -81,7 +83,7 @@ ScreenShell createScreenShell(const char *title, const char *icon)
 
     lv_obj_t *iconLbl = lv_label_create(header);
     lv_label_set_text(iconLbl, icon);
-    lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(iconLbl, &lucide_14, 0);
     lv_obj_set_style_text_color(iconLbl, Palette::textMuted(), 0);
 
     lv_obj_t *titleLbl = lv_label_create(header);

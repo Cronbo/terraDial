@@ -1,7 +1,7 @@
 #include "ui_dial.h"
+#include "lucide_icons.h"
 #include "palette.h"
 #include "radial_ring.h"
-#include "icon_lightbulb.h"
 #include "ui_widgets.h"
 #include <string.h>
 
@@ -44,14 +44,7 @@ namespace
     struct DialItem
     {
         const char *label;
-        const char *icon; // LV_SYMBOL_* placeholder standing in for a real Lucide icon
-        // Set instead of `icon` to use a real Lucide glyph rasterised to an
-        // alpha bitmap (see icon_lightbulb.h). Alpha-only, so it recolours
-        // with the ring exactly like the symbol-font icons do. Two sizes,
-        // since a bitmap can't be scaled here: iconImg for most of the
-        // ring, iconImgLarge for the top slot.
-        const lv_img_dsc_t *iconImg;
-        const lv_img_dsc_t *iconImgLarge;
+        const char *icon; // a LUCIDE_* glyph (lucide_icons.h)
         // Pinned to alert red regardless of ring position, instead of
         // fading between the raised surface and the accent like every other
         // item. E-Stop has to be findable at a glance mid-panic -- if it
@@ -68,20 +61,19 @@ namespace
     // mid-ring where the alert-red chip is easy to find, and the two you
     // rarely touch mid-job trail at the end.
     const DialItem DIAL_ITEMS[] = {
-        {"Home XY", LV_SYMBOL_HOME, nullptr, nullptr, false},
-        {"Jog", LV_SYMBOL_GPS, nullptr, nullptr, false},
-        {"Pen", LV_SYMBOL_EDIT, nullptr, nullptr, false},
+        {"Home XY", LUCIDE_HOUSE, false},
+        {"Jog", LUCIDE_MOVE, false},
+        {"Pen", LUCIDE_PEN, false},
         // An SD card, not a folder: inside Jobs, folders are chips of their
         // own, and the same picture shouldn't mean both "this screen" and
-        // "a folder on it".
-        {"Jobs", LV_SYMBOL_SD_CARD, nullptr, nullptr, false},
+        // "a folder on it". Lucide has no SD card; card-sim is the shape.
+        {"Jobs", LUCIDE_CARD_SIM, false},
         // Directly after Jobs because that is where it falls in a session:
         // you run the plot, watch it finish, then park to photograph it.
-        {"Photo", LV_SYMBOL_IMAGE, nullptr, nullptr, false},
-        {"E-Stop", LV_SYMBOL_STOP, nullptr, nullptr, true},
-        // Real Lucide bulb -- LVGL's symbol font has no lamp glyph.
-        {"Lights", nullptr, &iconLightbulb, &iconLightbulbLarge, false},
-        {"Settings", LV_SYMBOL_SETTINGS, nullptr, nullptr, false},
+        {"Photo", LUCIDE_CAMERA, false},
+        {"E-Stop", LUCIDE_OCTAGON_X, true},
+        {"Lights", LUCIDE_LIGHTBULB, false},
+        {"Settings", LUCIDE_SETTINGS, false},
     };
     const int DIAL_ITEM_COUNT = 8;
 
@@ -144,37 +136,14 @@ namespace
 
         UiRingIconSize want = uiRingIconSize(nearness, iconSize[i]);
 
-        if (DIAL_ITEMS[i].iconImg)
+        lv_obj_set_style_text_color(iconObjs[i], iconColor, 0);
+        // A font change forces a label relayout, unlike the plain colour
+        // write above -- skip it unless the size bucket actually flipped,
+        // since this runs for every item on every animation frame.
+        if (want != iconSize[i])
         {
-            // Alpha bitmaps take their colour from img_recolor rather than
-            // text_color.
-            lv_obj_set_style_img_recolor(iconObjs[i], iconColor, 0);
-
-            // Two pre-rasterised bitmaps rather than lv_img_set_zoom:
-            // scaling sends LVGL down its transform path, which combined
-            // with the parent card's opacity < 255 made the icon
-            // intermittently vanish altogether. Only the top slot gets the
-            // big one -- there's no third bitmap, so medium shares the
-            // small one, which is fine since medium chips are the size the
-            // 20px bitmaps were drawn for.
-            if (want != iconSize[i])
-            {
-                iconSize[i] = want;
-                lv_img_set_src(iconObjs[i], want == UiRingIconLarge ? DIAL_ITEMS[i].iconImgLarge : DIAL_ITEMS[i].iconImg);
-            }
-        }
-        else
-        {
-            lv_obj_set_style_text_color(iconObjs[i], iconColor, 0);
-            // A font change forces a label relayout, unlike the plain
-            // colour write above -- skip it unless the size bucket actually
-            // flipped, since this runs for every item on every animation
-            // frame.
-            if (want != iconSize[i])
-            {
-                iconSize[i] = want;
-                lv_obj_set_style_text_font(iconObjs[i], uiRingIconFont(want), 0);
-            }
+            iconSize[i] = want;
+            lv_obj_set_style_text_font(iconObjs[i], uiRingIconFont(want), 0);
         }
     }
 
@@ -194,16 +163,6 @@ namespace
         // fingertip.
         lv_obj_set_ext_click_area(card, 10);
 
-        if (DIAL_ITEMS[index].iconImg)
-        {
-            lv_obj_t *img = lv_img_create(card);
-            lv_img_set_src(img, DIAL_ITEMS[index].iconImg);
-            // Alpha-only source: recolor_opa must be on or it draws nothing.
-            lv_obj_set_style_img_recolor_opa(img, LV_OPA_COVER, 0);
-            lv_obj_center(img);
-            iconObjs[index] = img;
-        }
-        else
         {
             lv_obj_t *iconLbl = lv_label_create(card);
             lv_label_set_text(iconLbl, DIAL_ITEMS[index].icon);

@@ -1,4 +1,5 @@
 #include "ui_home.h"
+#include "lucide_icons.h"
 #include "../net/fluidnc_client.h"
 #include "palette.h"
 #include "ui_nav.h"
@@ -30,8 +31,8 @@ lv_obj_t *uiHomeCreate()
     // are load-bearing -- changing a font size or adding a body line will
     // collide with the pill (which is exactly what happened before).
     lv_obj_t *iconLbl = lv_label_create(scr);
-    lv_label_set_text(iconLbl, LV_SYMBOL_HOME); // matches this item's dial icon
-    lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_24, 0);
+    lv_label_set_text(iconLbl, LUCIDE_HOUSE); // matches this item's dial icon
+    lv_obj_set_style_text_font(iconLbl, &lucide_24, 0);
     lv_obj_set_style_text_color(iconLbl, Palette::accent(), 0);
     lv_obj_align(iconLbl, LV_ALIGN_CENTER, 0, -58);
 

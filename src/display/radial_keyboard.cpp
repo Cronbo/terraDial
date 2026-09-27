@@ -1,4 +1,5 @@
 #include "radial_keyboard.h"
+#include "lucide_icons.h"
 #include "palette.h"
 #include <math.h>
 #include <string.h>
@@ -222,11 +223,11 @@ namespace
             if (sel) return &lv_font_montserrat_24;
             return nearness > 0.6f ? &lv_font_montserrat_14 : &lv_font_montserrat_12;
         }
-        if (isIconKey(i))
+        if (isIconKey(i)) // LUCIDE_* glyphs, so Lucide fonts
         {
-            if (sel) return &lv_font_montserrat_24;
-            if (nearness > 0.6f) return &lv_font_montserrat_16;
-            return nearness > 0.3f ? &lv_font_montserrat_14 : &lv_font_montserrat_12;
+            if (sel) return &lucide_24;
+            if (nearness > 0.6f) return &lucide_16;
+            return nearness > 0.3f ? &lucide_14 : &lucide_12;
         }
         if (sel) return &lv_font_montserrat_32;
         if (nearness > 0.6f) return &lv_font_montserrat_18;
@@ -379,12 +380,12 @@ namespace
         }
         keys[keyCount++] = {PAGE_NEXT_LABEL[page], 0, Action::NextPage};
         keys[keyCount++] = {"SP", ' ', Action::Space};
-        keys[keyCount++] = {LV_SYMBOL_BACKSPACE, 0, Action::Backspace};
-        if (isPassword) keys[keyCount++] = {revealed ? LV_SYMBOL_EYE_CLOSE : LV_SYMBOL_EYE_OPEN, 0, Action::Reveal};
-        keys[keyCount++] = {LV_SYMBOL_OK, 0, Action::Accept};
+        keys[keyCount++] = {LUCIDE_DELETE, 0, Action::Backspace};
+        if (isPassword) keys[keyCount++] = {revealed ? LUCIDE_EYE_OFF : LUCIDE_EYE, 0, Action::Reveal};
+        keys[keyCount++] = {LUCIDE_CHECK, 0, Action::Accept};
         // The knob long-press cancels too, but nothing on screen said so --
         // touch-only, the editor had no way out except saving.
-        keys[keyCount++] = {LV_SYMBOL_CLOSE, 0, Action::Cancel};
+        keys[keyCount++] = {LUCIDE_X, 0, Action::Cancel};
 
         for (int i = 0; i < keyCount; i++)
         {

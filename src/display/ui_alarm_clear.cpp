@@ -1,4 +1,5 @@
 #include "ui_alarm_clear.h"
+#include "lucide_icons.h"
 #include "../net/fluidnc_client.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
@@ -29,8 +30,8 @@ lv_obj_t *uiAlarmClearCreate()
     // there. Four stacked items plus the back button barely fit inside the
     // 240px circle, so these offsets have almost no slack.
     lv_obj_t *iconLbl = lv_label_create(scr);
-    lv_label_set_text(iconLbl, LV_SYMBOL_WARNING);
-    lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_24, 0);
+    lv_label_set_text(iconLbl, LUCIDE_TRIANGLE_ALERT);
+    lv_obj_set_style_text_font(iconLbl, &lucide_24, 0);
     lv_obj_set_style_text_color(iconLbl, Palette::accent(), 0);
     lv_obj_align(iconLbl, LV_ALIGN_CENTER, 0, -58);
 

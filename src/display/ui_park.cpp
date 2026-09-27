@@ -1,4 +1,5 @@
 #include "ui_park.h"
+#include "lucide_icons.h"
 #include "../net/fluidnc_client.h"
 #include "machine_extents.h"
 #include "palette.h"
@@ -103,8 +104,8 @@ lv_obj_t *uiParkCreate()
     // This screen carries one extra line (the status), which is why the body
     // copy here is a single line where Home's is two.
     lv_obj_t *iconLbl = lv_label_create(scr);
-    lv_label_set_text(iconLbl, LV_SYMBOL_IMAGE); // matches this item's dial icon
-    lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_24, 0);
+    lv_label_set_text(iconLbl, LUCIDE_CAMERA); // matches this item's dial icon
+    lv_obj_set_style_text_font(iconLbl, &lucide_24, 0);
     lv_obj_set_style_text_color(iconLbl, Palette::accent(), 0);
     lv_obj_align(iconLbl, LV_ALIGN_CENTER, 0, -58);
 

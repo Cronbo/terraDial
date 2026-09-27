@@ -103,7 +103,7 @@ def icon(parts, cx, cy, kind, size, col):
     elif kind == "pen":
         parts.append('<path d="M%g %g l%g %g M%g %g l%g %g" %s/>'
                      % (cx - s * .7, cy + s * .7, s * 1.4, -s * 1.4, cx - s * .7, cy + s * .7, s * .35, -s * .1, st))
-    elif kind == "bulb":  # matches tools/gen_lucide_icon.py
+    elif kind == "bulb":  # Lucide lightbulb, simplified
         parts.append('<path d="M%g %g a%g %g 0 1 1 %g 0" %s/>' % (cx - s * .55, cy, s * .55, s * .55, s * 1.1, st))
         parts.append('<path d="M%g %g v%g M%g %g v%g M%g %g h%g M%g %g h%g" %s/>'
                      % (cx - s * .55, cy, s * .35, cx + s * .55, cy, s * .35,
@@ -116,7 +116,7 @@ def icon(parts, cx, cy, kind, size, col):
         circle(parts, cx, cy, s * .85, "none", col, lw)
         parts.append('<path d="M%g %g v-%g M%g %g h%g" %s/>'
                      % (cx, cy, s * .5, cx, cy, s * .42, st))
-    elif kind == "image":  # stands in for LV_SYMBOL_IMAGE on the Photo item
+    elif kind == "image":  # stands in for Lucide camera on the Photo item
         rect(parts, cx - s * .85, cy - s * .7, s * 1.7, s * 1.4, s * .2, "none", stroke=col)
         circle(parts, cx - s * .3, cy - s * .22, s * .18, col)
         parts.append('<path d="M%g %g l%g %g l%g %g" %s/>'
@@ -155,7 +155,7 @@ def icon(parts, cx, cy, kind, size, col):
     elif kind == "pause":
         rect(parts, cx - s * .5, cy - s * .6, s * .35, s * 1.2, 1, col)
         rect(parts, cx + s * .15, cy - s * .6, s * .35, s * 1.2, 1, col)
-    elif kind == "sdcard":  # stands in for LV_SYMBOL_SD_CARD on the Jobs item
+    elif kind == "sdcard":  # stands in for Lucide card-sim on the Jobs item
         parts.append('<path d="M%g %g h%g l%g %g v%g h-%g z" %s/>'
                      % (cx - s * .45, cy - s * .8, s * .75, s * .35, s * .35, s * 1.25, s * 1.1, st))
         for dx in (-.2, .05, .3):

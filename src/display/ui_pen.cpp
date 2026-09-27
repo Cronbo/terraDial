@@ -1,4 +1,5 @@
 #include "ui_pen.h"
+#include "lucide_icons.h"
 #include "../net/fluidnc_client.h"
 #include "../config/settings.h"
 #include "palette.h"
@@ -46,7 +47,7 @@ namespace
 
 lv_obj_t *uiPenCreate()
 {
-    ScreenShell shell = createScreenShell("PEN", LV_SYMBOL_EDIT);
+    ScreenShell shell = createScreenShell("PEN", LUCIDE_PEN);
 
     // Segmented control (not a toggle switch): both states are always
     // visible with the active one accent-filled, so the current state

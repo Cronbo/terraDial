@@ -1,4 +1,5 @@
 #include "ui_files.h"
+#include "lucide_icons.h"
 #include "../net/fluidnc_client.h"
 #include "radial_ring.h"
 #include "palette.h"
@@ -113,7 +114,7 @@ namespace
         if (entry.isDir)
         {
             lv_label_set_text(hubMetaLbl, "Folder");
-            lv_label_set_text(hubActionLbl, LV_SYMBOL_DIRECTORY " Open");
+            lv_label_set_text(hubActionLbl, LUCIDE_FOLDER_OPEN " Open");
             return;
         }
         char sizeBuf[16];
@@ -124,7 +125,7 @@ namespace
         // take a command this long (see FluidNCClient::runPathFits).
         char path[PATH_BUF];
         bool runnable = joinPath(path, sizeof(path), curDir, entry.name) && FluidNCClient::runPathFits(path);
-        lv_label_set_text(hubActionLbl, runnable ? LV_SYMBOL_PLAY " Run" : "Path too long");
+        lv_label_set_text(hubActionLbl, runnable ? LUCIDE_PLAY " Run" : "Path too long");
     }
 
     void openFolder(const char *dir)
@@ -225,7 +226,7 @@ namespace
         lv_obj_set_ext_click_area(chip, 10);
 
         lv_obj_t *icon = lv_label_create(chip);
-        lv_label_set_text(icon, LV_SYMBOL_FILE);
+        lv_label_set_text(icon, LUCIDE_FILE);
         // Must match the chip's recorded bucket (user data, 0 = small) --
         // onItemStyle only writes a font when the bucket CHANGES, so a
         // mismatch leaves the chip drawn at the wrong size.
@@ -242,7 +243,7 @@ namespace
         if (!icon) return;
         FluidNCFileEntry entry;
         bool isDir = fluidNC.fileListEntry(index, entry) && entry.isDir;
-        lv_label_set_text(icon, isDir ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE);
+        lv_label_set_text(icon, isDir ? LUCIDE_FOLDER : LUCIDE_FILE);
     }
 
     void rebuildList()
@@ -315,7 +316,7 @@ lv_obj_t *uiFilesCreate()
     lv_obj_align(hubMetaLbl, LV_ALIGN_CENTER, 0, 4);
 
     hubActionLbl = lv_label_create(hub);
-    lv_obj_set_style_text_font(hubActionLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(hubActionLbl, &lucide_12, 0); // icon + word
     lv_obj_set_style_text_color(hubActionLbl, Palette::accent(), 0);
     lv_obj_align(hubActionLbl, LV_ALIGN_CENTER, 0, 24);
 
