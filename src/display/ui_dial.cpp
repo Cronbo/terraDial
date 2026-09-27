@@ -2,6 +2,7 @@
 #include "palette.h"
 #include "radial_ring.h"
 #include "icon_lightbulb.h"
+#include "icon_folder.h"
 #include "ui_widgets.h"
 #include <string.h>
 
@@ -47,8 +48,11 @@ namespace
         const char *icon; // LV_SYMBOL_* placeholder standing in for a real Lucide icon
         // Set instead of `icon` to use a real Lucide glyph rasterised to an
         // alpha bitmap (see icon_lightbulb.h). Alpha-only, so it recolours
-        // with the ring exactly like the symbol-font icons do.
+        // with the ring exactly like the symbol-font icons do. Two sizes,
+        // since a bitmap can't be scaled here: iconImg for most of the
+        // ring, iconImgLarge for the top slot.
         const lv_img_dsc_t *iconImg;
+        const lv_img_dsc_t *iconImgLarge;
         // Pinned to alert red regardless of ring position, instead of
         // fading between the raised surface and the accent like every other
         // item. E-Stop has to be findable at a glance mid-panic -- if it
@@ -65,16 +69,19 @@ namespace
     // mid-ring where the alert-red chip is easy to find, and the two you
     // rarely touch mid-job trail at the end.
     const DialItem DIAL_ITEMS[] = {
-        {"Home XY", LV_SYMBOL_HOME, nullptr, false},
-        {"Jog", LV_SYMBOL_GPS, nullptr, false},
-        {"Pen", LV_SYMBOL_EDIT, nullptr, false},
-        {"Jobs", LV_SYMBOL_FILE, nullptr, false},
+        {"Home XY", LV_SYMBOL_HOME, nullptr, nullptr, false},
+        {"Jog", LV_SYMBOL_GPS, nullptr, nullptr, false},
+        {"Pen", LV_SYMBOL_EDIT, nullptr, nullptr, false},
+        // Lucide folder rather than the symbol font's file glyph: Jobs is a
+        // browser now, folders and all.
+        {"Jobs", nullptr, &iconFolder, &iconFolderLarge, false},
         // Directly after Jobs because that is where it falls in a session:
         // you run the plot, watch it finish, then park to photograph it.
-        {"Photo", LV_SYMBOL_IMAGE, nullptr, false},
-        {"E-Stop", LV_SYMBOL_STOP, nullptr, true},
-        {"Lights", nullptr, &iconLightbulb, false}, // real Lucide bulb -- LVGL's symbol font has no lamp glyph
-        {"Settings", LV_SYMBOL_SETTINGS, nullptr, false},
+        {"Photo", LV_SYMBOL_IMAGE, nullptr, nullptr, false},
+        {"E-Stop", LV_SYMBOL_STOP, nullptr, nullptr, true},
+        // Real Lucide bulb -- LVGL's symbol font has no lamp glyph.
+        {"Lights", nullptr, &iconLightbulb, &iconLightbulbLarge, false},
+        {"Settings", LV_SYMBOL_SETTINGS, nullptr, nullptr, false},
     };
     const int DIAL_ITEM_COUNT = 8;
 
@@ -149,11 +156,11 @@ namespace
             // intermittently vanish altogether. Only the top slot gets the
             // big one -- there's no third bitmap, so medium shares the
             // small one, which is fine since medium chips are the size the
-            // 20px bulb was drawn for.
+            // 20px bitmaps were drawn for.
             if (want != iconSize[i])
             {
                 iconSize[i] = want;
-                lv_img_set_src(iconObjs[i], want == UiRingIconLarge ? &iconLightbulbLarge : &iconLightbulb);
+                lv_img_set_src(iconObjs[i], want == UiRingIconLarge ? DIAL_ITEMS[i].iconImgLarge : DIAL_ITEMS[i].iconImg);
             }
         }
         else

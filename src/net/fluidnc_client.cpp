@@ -34,10 +34,16 @@ void FluidNCClient::begin()
 void FluidNCClient::enqueue(bool raw, const char *text)
 {
     if (!cmdQueue_) return; // initTransport() not called yet -- nothing to do but drop
+    if (strlen(text) > MAX_COMMAND_LEN)
+    {
+        // Never send a truncated command -- see MAX_COMMAND_LEN.
+        Serial.printf("[fluidnc] command too long for FluidNC (%u chars), not sent: %.60s...\n",
+                      (unsigned)strlen(text), text);
+        return;
+    }
     OutCmd cmd;
     cmd.raw = raw;
-    strncpy(cmd.text, text, sizeof(cmd.text) - 1);
-    cmd.text[sizeof(cmd.text) - 1] = '\0';
+    strcpy(cmd.text, text);
     // Never block the UI task waiting for queue space: if the network task
     // is wedged behind a slow socket, dropping a jog/status command is far
     // better than freezing the display until it recovers.
@@ -74,6 +80,31 @@ void FluidNCClient::clearFileListReady()
     if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
     {
         sdFiles_.clearReady();
+        xSemaphoreGive(fileMutex_);
+    }
+}
+
+bool FluidNCClient::fileListFailed() const
+{
+    if (!fileMutex_) return false;
+    bool v = false;
+    if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        v = sdFiles_.failed();
+        xSemaphoreGive(fileMutex_);
+    }
+    return v;
+}
+
+void FluidNCClient::fileListDir(char *out, size_t outSize) const
+{
+    if (!outSize) return;
+    out[0] = '\0';
+    if (!fileMutex_) return;
+    if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        strncpy(out, sdFiles_.dir(), outSize - 1);
+        out[outSize - 1] = '\0';
         xSemaphoreGive(fileMutex_);
     }
 }
@@ -259,11 +290,34 @@ void FluidNCClient::update()
 // because FluidNC can be slow on the first SD access after boot.
 void FluidNCClient::fetchFileList()
 {
+    char dir[SD_DIR_MAX] = "";
+    if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        strcpy(dir, fileListDir_);
+        xSemaphoreGive(fileMutex_);
+    }
+
+    // Percent-encode each byte of the folder path, but leave the slashes
+    // between segments alone: FluidNC 3.x resets the connection when it
+    // sees %2F in this parameter (terraForge's finding); 4.x takes either.
+    String url = "http://" + resolvedIp_.toString() + ":" + String(httpPort_) + "/upload?path=/";
+    static const char HEX_DIGITS[] = "0123456789ABCDEF";
+    for (const char *p = dir; *p; p++)
+    {
+        unsigned char c = (unsigned char)*p;
+        if (isalnum(c) || c == '/' || c == '-' || c == '_' || c == '.' || c == '~') url += (char)c;
+        else
+        {
+            url += '%';
+            url += HEX_DIGITS[c >> 4];
+            url += HEX_DIGITS[c & 15];
+        }
+    }
+    Serial.printf("[fluidnc] listing SD folder /%s\n", dir);
+
     HTTPClient http;
     http.setTimeout(10000);
     http.setConnectTimeout(3000);
-    char url[64];
-    snprintf(url, sizeof(url), "http://%s:%u/upload?path=/", resolvedIp_.toString().c_str(), httpPort_);
     String body;
     int code = -1;
     if (http.begin(url))
@@ -275,11 +329,11 @@ void FluidNCClient::fetchFileList()
 
     if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(50)) == pdTRUE)
     {
-        if (body.length()) sdFiles_.setResponse(body);
+        if (body.length()) sdFiles_.setResponse(body, dir);
         else
         {
             Serial.printf("[fluidnc] SD file list request failed (HTTP %d)\n", code);
-            sdFiles_.fail();
+            sdFiles_.fail(dir);
         }
         xSemaphoreGive(fileMutex_);
     }
@@ -598,10 +652,12 @@ void FluidNCClient::jog(char axis, float deltaMm, float feedrate)
     enqueue(false, cmd.c_str());
 }
 
-void FluidNCClient::requestFileList()
+void FluidNCClient::requestFileList(const char *dir)
 {
     if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
     {
+        strncpy(fileListDir_, dir ? dir : "", sizeof(fileListDir_) - 1);
+        fileListDir_[sizeof(fileListDir_) - 1] = '\0';
         sdFiles_.beginCapture();
         xSemaphoreGive(fileMutex_);
     }
@@ -610,19 +666,31 @@ void FluidNCClient::requestFileList()
     fileListRequested_ = true;
 }
 
-void FluidNCClient::runFile(const char *filename)
+bool FluidNCClient::runPathFits(const char *path)
 {
-    status_.jobActive = true;
-    String cmd = "$SD/Run=";
-    cmd += filename;
-    enqueue(false, cmd.c_str());
+    // "$SD/Delete=" is the longer of the two prefixes, but a file you can
+    // run and not delete from the panel is fine; one you can see and not
+    // run is what this guards.
+    return strlen("$SD/Run=") + strlen(path) <= MAX_COMMAND_LEN;
 }
 
-void FluidNCClient::deleteFile(const char *filename)
+bool FluidNCClient::runFile(const char *path)
+{
+    String cmd = "$SD/Run=";
+    cmd += path;
+    if (cmd.length() > MAX_COMMAND_LEN) return false;
+    status_.jobActive = true;
+    enqueue(false, cmd.c_str());
+    return true;
+}
+
+bool FluidNCClient::deleteFile(const char *path)
 {
     String cmd = "$SD/Delete=";
-    cmd += filename;
+    cmd += path;
+    if (cmd.length() > MAX_COMMAND_LEN) return false;
     enqueue(false, cmd.c_str());
+    return true;
 }
 
 void FluidNCClient::sendGcodeLine(const char *line) { enqueue(false, line); }

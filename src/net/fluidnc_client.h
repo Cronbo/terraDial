@@ -26,7 +26,9 @@ struct FluidNCStatus
     // see the plan's note on verifying the `SD:` field against your
     // specific FluidNC version).
     float jobPercent = -1;
-    char jobFilename[48] = {0};
+    // Scrolled rather than truncated on screen, so kept whole (FAT's
+    // limit, which is also more than FluidNC can run -- see runPathFits()).
+    char jobFilename[256] = {0};
 
     // True only for a real SD-file job started via runFile() -- distinct
     // from MachineMode::Run, which FluidNC also reports for plain jogging
@@ -100,21 +102,35 @@ public:
     void home();                                       // $X (if alarmed) then $H
     void jog(char axis, float deltaMm, float feedrate); // $J=G91 G21 <axis><delta> F<feed>
     void clearAlarm();                                  // $X
-    void runFile(const char *filename);                 // $SD/Run=<file>
-    void deleteFile(const char *filename);              // $SD/Delete=<file>
+    // `path` is relative to the SD root, e.g. "drawings/snowflake.gcode".
+    // Both return false, and send nothing, if the command would be longer
+    // than FluidNC accepts -- see runPathFits().
+    bool runFile(const char *path);                     // $SD/Run=<path>
+    bool deleteFile(const char *path);                  // $SD/Delete=<path>
     void sendGcodeLine(const char *line);                // arbitrary line (pen macros, etc.)
 
-    // SD file listing. requestFileList() asks the network task to fetch
-    // the listing over HTTP (see SdFileList); poll fileListReady() and
-    // call clearFileListReady() once you've read the results via
-    // fileListCount()/fileListEntry(). Only files with a recognized G-code
-    // extension are kept; directories are skipped (flat pendant list, no
-    // subfolder browsing).
-    static const int MAX_FILES = SdFileList::MAX_FILES;
-    void requestFileList();
+    // FluidNC reads a command into a 255-byte buffer (Channel::maxLine,
+    // v4.0.3), so the longest line it accepts is 254 characters. A longer
+    // one would be cut short and run or delete a different path -- or
+    // nothing -- so it's refused instead.
+    static const size_t MAX_COMMAND_LEN = 254;
+    static bool runPathFits(const char *path);
+
+    // SD file listing, one folder at a time. requestFileList() asks the
+    // network task to fetch `dir` (relative to the SD root, no leading or
+    // trailing slash; "" is the root) over HTTP -- see SdFileList. Poll
+    // fileListReady() and call clearFileListReady() once you've read the
+    // results via fileListCount()/fileListEntry(). Only files with a
+    // recognized G-code extension are kept, plus folders.
+    void requestFileList(const char *dir);
     bool fileListReady() const;
     void clearFileListReady();
     int fileListCount() const;
+    // Whether the ready list came from a failed fetch rather than a folder
+    // with nothing runnable in it.
+    bool fileListFailed() const;
+    // The folder the ready list is from (it can trail the latest request).
+    void fileListDir(char *out, size_t outSize) const;
     // Copies entry i into out; returns false if i is out of range. Copies
     // rather than returning a reference because networkTask may rewrite the
     // underlying array the moment the mutex is released.
@@ -144,8 +160,11 @@ private:
     bool wsPortGuessed_ = false;
     uint32_t wsBeganAt_ = 0;
     volatile bool fileListRequested_ = false; // set by the UI task, fetched by networkTask
+    char fileListDir_[SD_DIR_MAX] = "";       // the folder to fetch; guarded by fileMutex_
 
-    char lineBuf_[192];
+    // Room for a status report carrying a full-length job path in its SD:
+    // field, on top of the position and feed fields.
+    char lineBuf_[512];
     size_t lineLen_ = 0;
 
     // Deferred half of home(): $X goes out immediately, $H waits for
@@ -168,7 +187,7 @@ private:
     struct OutCmd
     {
         bool raw;
-        char text[112];
+        char text[MAX_COMMAND_LEN + 1];
     };
     static const int CMD_QUEUE_DEPTH = 12;
     QueueHandle_t cmdQueue_ = nullptr;

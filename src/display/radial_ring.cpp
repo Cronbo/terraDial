@@ -63,15 +63,84 @@ float RadialRing::spreadAngle(float angle, float limit) const
 
 void RadialRing::addItem(lv_obj_t *item)
 {
-    if (count_ >= MAX_ITEMS) return;
+    if (virtual_ || count_ >= MAX_ITEMS) return; // a virtual ring owns its chips
     items_[count_] = item;
     lv_obj_add_event_cb(item, itemTapCb, LV_EVENT_CLICKED, this);
     count_++;
     layout();
 }
 
+void RadialRing::setVirtual(int poolSize, lv_obj_t *(*createItem)(lv_obj_t *parent),
+                            void (*bindItem)(lv_obj_t *item, int index))
+{
+    virtual_ = true;
+    bindItem_ = bindItem;
+    poolCount_ = poolSize < MAX_ITEMS ? poolSize : MAX_ITEMS;
+    for (int s = 0; s < poolCount_; s++)
+    {
+        items_[s] = createItem(parent_);
+        lv_obj_add_event_cb(items_[s], itemTapCb, LV_EVENT_CLICKED, this);
+        slotIndex_[s] = -1;
+    }
+    count_ = 0;
+    layout();
+}
+
+void RadialRing::setCount(int count)
+{
+    lv_anim_del(this, animCb);
+    count_ = count < 0 ? 0 : count;
+    selectedIndex_ = 0;
+    offsetX100_ = 0;
+    targetOffsetX100_ = 0;
+    // New list: whatever the chips were showing belongs to the old one.
+    for (int s = 0; s < poolCount_; s++) slotIndex_[s] = -1;
+    layout();
+}
+
+// Virtual mode: releases chips whose entry has left the arc, then gives a
+// free chip to each entry that has entered it. Chips stay with an entry
+// while it's on screen, so an entry is only bound once per visit rather
+// than on every animation frame.
+void RadialRing::assignSlots(float offsetDeg)
+{
+    const float step = stepDeg();
+    auto onScreen = [&](int i) {
+        return i >= 0 && i < count_ && fabsf(i * step + offsetDeg) < halfArcDeg_;
+    };
+
+    for (int s = 0; s < poolCount_; s++)
+        if (slotIndex_[s] >= 0 && !onScreen(slotIndex_[s])) slotIndex_[s] = -1;
+
+    int first = (int)ceilf((-halfArcDeg_ - offsetDeg) / step);
+    int last = (int)floorf((halfArcDeg_ - offsetDeg) / step);
+    if (first < 0) first = 0;
+    if (last > count_ - 1) last = count_ - 1;
+
+    for (int i = first; i <= last; i++)
+    {
+        if (!onScreen(i)) continue;
+        bool bound = false;
+        int freeSlot = -1;
+        for (int s = 0; s < poolCount_; s++)
+        {
+            if (slotIndex_[s] == i) bound = true;
+            else if (slotIndex_[s] < 0 && freeSlot < 0) freeSlot = s;
+        }
+        if (bound) continue;
+        if (freeSlot < 0) break; // pool smaller than the arc -- see setVirtual()
+        slotIndex_[freeSlot] = i;
+        if (bindItem_) bindItem_(items_[freeSlot], i);
+    }
+}
+
 void RadialRing::clear()
 {
+    if (virtual_)
+    {
+        setCount(0); // the pool is permanent; an empty list just hides it
+        return;
+    }
     lv_anim_del(this, animCb);
     for (int i = 0; i < count_; i++)
     {
@@ -89,7 +158,7 @@ void RadialRing::setVisible(bool visible)
     visible_ = visible;
     if (!visible)
     {
-        for (int i = 0; i < count_; i++)
+        for (int i = 0; i < objCount(); i++)
             if (items_[i]) lv_obj_add_flag(items_[i], LV_OBJ_FLAG_HIDDEN);
         return;
     }
@@ -100,10 +169,22 @@ void RadialRing::layout()
 {
     // Hidden wholesale by the owner -- don't fight it by un-hiding items on
     // the next animation frame.
-    if (!visible_ || count_ == 0) return;
+    if (!visible_) return;
     float offsetDeg = offsetX100_ / 100.0f;
-    for (int i = 0; i < count_; i++)
+    if (virtual_) assignSlots(offsetDeg);
+    const int objs = objCount();
+    if (objs == 0) return;
+    // `s` walks the chips; `i` is the list entry the chip shows. They're
+    // the same thing except in virtual mode.
+    for (int s = 0; s < objs; s++)
     {
+        int i = indexOfSlot(s);
+        if (i < 0)
+        {
+            lv_obj_add_flag(items_[s], LV_OBJ_FLAG_HIDDEN); // spare pool chip
+            continue;
+        }
+
         // Full-circle mode wraps, so an item that rotates past the bottom
         // reappears on the other side. Arc mode must NOT wrap: with a fixed
         // pitch the list is usually longer than 360 degrees, and wrapping
@@ -117,10 +198,10 @@ void RadialRing::layout()
             // Outside the arc: hidden outright, so it costs nothing to draw
             // and can't be tapped. Tested on the even angle, so which items
             // the arc admits doesn't change with the spread.
-            lv_obj_add_flag(items_[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(items_[s], LV_OBJ_FLAG_HIDDEN);
             continue;
         }
-        lv_obj_clear_flag(items_[i], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(items_[s], LV_OBJ_FLAG_HIDDEN);
 
         angle = spreadAngle(angle, limit);
 
@@ -141,13 +222,13 @@ void RadialRing::layout()
         // device's heap (items drew blank at rest and only flashed into
         // view mid-animation).
         lv_coord_t size = sizeFar_ + (lv_coord_t)((sizeNear_ - sizeFar_) * nearness);
-        lv_obj_set_size(items_[i], size, size);
-        lv_obj_align(items_[i], LV_ALIGN_CENTER, x, y);
-        lv_obj_set_style_opa(items_[i], (lv_opa_t)(opaFar_ + (lv_opa_t)((opaNear_ - opaFar_) * nearness)), 0);
+        lv_obj_set_size(items_[s], size, size);
+        lv_obj_align(items_[s], LV_ALIGN_CENTER, x, y);
+        lv_obj_set_style_opa(items_[s], (lv_opa_t)(opaFar_ + (lv_opa_t)((opaNear_ - opaFar_) * nearness)), 0);
 
-        if (onItemStyle_) onItemStyle_(items_[i], i, nearness);
+        if (onItemStyle_) onItemStyle_(items_[s], i, nearness);
 
-        nearness_[i] = nearness;
+        nearness_[s] = nearness;
     }
 
     // Stack nearer items over further ones. A plain "selected to the front"
@@ -160,16 +241,16 @@ void RadialRing::layout()
     // ring), and this runs on every animation frame.
     int order[MAX_ITEMS];
     int n = 0;
-    for (int i = 0; i < count_; i++)
+    for (int s = 0; s < objs; s++)
     {
-        if (lv_obj_has_flag(items_[i], LV_OBJ_FLAG_HIDDEN)) continue;
+        if (lv_obj_has_flag(items_[s], LV_OBJ_FLAG_HIDDEN)) continue;
         int j = n++;
-        while (j > 0 && nearness_[order[j - 1]] > nearness_[i])
+        while (j > 0 && nearness_[order[j - 1]] > nearness_[s])
         {
             order[j] = order[j - 1];
             j--;
         }
-        order[j] = i;
+        order[j] = s;
     }
     for (int k = 0; k < n; k++) lv_obj_move_foreground(items_[order[k]]);
 }
@@ -231,9 +312,11 @@ void RadialRing::itemTapCb(lv_event_t *e)
 {
     RadialRing *self = (RadialRing *)lv_event_get_user_data(e);
     lv_obj_t *target = lv_event_get_target(e);
-    for (int i = 0; i < self->count_; i++)
+    for (int s = 0; s < self->objCount(); s++)
     {
-        if (self->items_[i] != target) continue;
+        if (self->items_[s] != target) continue;
+        int i = self->indexOfSlot(s); // the entry this chip is showing
+        if (i < 0) return;
 
         if (i != self->selectedIndex_)
         {

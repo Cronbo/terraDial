@@ -4,6 +4,7 @@
 #include "palette.h"
 #include "ui_screen_shell.h"
 #include "ui_widgets.h"
+#include "ui_nav.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -17,6 +18,12 @@
 // chips carry no text at all, so there's nothing to squint at -- you rotate
 // and read the one place that matters, the hub. It also means Jobs and Home
 // now share one browsing idiom instead of two.
+//
+// Folders are entries like files: opening one lists it, and back (the knob's
+// long-press or the on-screen arrow) steps up a folder before it leaves the
+// screen. The ring is virtual (RadialRing::setVirtual), so a folder of any
+// size costs the same handful of chips -- only the entries on the arc have
+// one.
 namespace
 {
     // Ring geometry. The arc is spread toward the top slot (see
@@ -32,16 +39,33 @@ namespace
     const lv_coord_t RING_SIZE_FAR = 20;
     const float RING_SPREAD = 0.55f;
 
+    // The arc below: 30-degree pitch, +/-132 degrees. At most
+    // floor(264 / 30) + 1 = 9 entries are on it at once.
+    const float RING_STEP_DEG = 30.0f;
+    const float RING_HALF_ARC_DEG = 132.0f;
+    const int RING_POOL = 9;
+
+    // A full path: folder, separator, FAT's longest name.
+    const size_t PATH_BUF = SD_DIR_MAX + 1 + SD_NAME_MAX + 1;
+
     RadialRing ring;
     lv_obj_t *screenRoot = nullptr;
 
-    // Which icon size each chip is drawn at -- see uiRingIconSize. Reset
-    // whenever the list is rebuilt, since the chips are destroyed with it.
-    UiRingIconSize iconSize[RadialRing::MAX_ITEMS] = {UiRingIconSmall};
     lv_obj_t *hubNameLbl = nullptr;
     lv_obj_t *hubMetaLbl = nullptr;
     lv_obj_t *hubActionLbl = nullptr;
-    char selectedFile[48] = {0};
+
+    // The folder being shown (or fetched), relative to the SD root with no
+    // leading or trailing slash -- "" is the root.
+    char curDir[SD_DIR_MAX] = "";
+    char selectedPath[PATH_BUF] = {0};
+
+    // dir + "/" + name, or just name at the root. False if it won't fit.
+    bool joinPath(char *out, size_t outSize, const char *dir, const char *name)
+    {
+        int n = dir[0] ? snprintf(out, outSize, "%s/%s", dir, name) : snprintf(out, outSize, "%s", name);
+        return n >= 0 && (size_t)n < outSize;
+    }
 
     void formatSize(char *buf, size_t bufSize, int32_t size)
     {
@@ -50,11 +74,26 @@ namespace
         else snprintf(buf, bufSize, "%ld B", (long)size);
     }
 
+    void showHubMessage(const char *name, const char *meta)
+    {
+        lv_label_set_text(hubNameLbl, name);
+        lv_label_set_text(hubMetaLbl, meta);
+        lv_label_set_text(hubActionLbl, "");
+    }
+
+    // Nothing to select: the list is empty or didn't arrive. These used to
+    // collapse into one "SD card empty", which is also what showed while
+    // the list was loading and when the plotter was unreachable.
     void showEmptyHub()
     {
-        lv_label_set_text(hubNameLbl, "No jobs");
-        lv_label_set_text(hubMetaLbl, "SD card empty");
-        lv_label_set_text(hubActionLbl, "");
+        if (fluidNC.fileListFailed()) showHubMessage("No list", "Can't reach plotter");
+        else if (curDir[0]) showHubMessage("No jobs", "Empty folder");
+        else showHubMessage("No jobs", "SD card empty");
+    }
+
+    void showLoadingHub()
+    {
+        showHubMessage("Loading...", curDir[0] ? curDir : "SD card");
     }
 
     void refreshHub(int index)
@@ -71,28 +110,76 @@ namespace
         // the selection actually changes, so this can't restart the scroll
         // animation mid-cycle the way a periodic update would.
         lv_label_set_text(hubNameLbl, entry.name);
+        if (entry.isDir)
+        {
+            lv_label_set_text(hubMetaLbl, "Folder");
+            lv_label_set_text(hubActionLbl, LV_SYMBOL_DIRECTORY " Open");
+            return;
+        }
         char sizeBuf[16];
         formatSize(sizeBuf, sizeof(sizeBuf), entry.size);
         lv_label_set_text(hubMetaLbl, sizeBuf);
-        lv_label_set_text(hubActionLbl, LV_SYMBOL_PLAY " Run");
+
+        // Say so up front rather than let a tap do nothing: FluidNC can't
+        // take a command this long (see FluidNCClient::runPathFits).
+        char path[PATH_BUF];
+        bool runnable = joinPath(path, sizeof(path), curDir, entry.name) && FluidNCClient::runPathFits(path);
+        lv_label_set_text(hubActionLbl, runnable ? LV_SYMBOL_PLAY " Run" : "Path too long");
+    }
+
+    void openFolder(const char *dir)
+    {
+        strncpy(curDir, dir, sizeof(curDir) - 1);
+        curDir[sizeof(curDir) - 1] = '\0';
+        // Clear the old folder's entries straight away, so nothing on
+        // screen can be opened against a list that's about to be replaced.
+        ring.setCount(0);
+        showLoadingHub();
+        fluidNC.requestFileList(curDir);
+    }
+
+    // Up one folder. False at the root, where "back" means leave the screen.
+    bool goUp()
+    {
+        if (!curDir[0]) return false;
+        char parent[SD_DIR_MAX];
+        strcpy(parent, curDir);
+        char *slash = strrchr(parent, '/');
+        if (slash) *slash = '\0';
+        else parent[0] = '\0';
+        openFolder(parent);
+        return true;
+    }
+
+    void backBtnCb(lv_event_t *e)
+    {
+        (void)e;
+        if (!goUp()) UiNav::goHome();
     }
 
     void confirmCb(lv_event_t *e)
     {
         lv_obj_t *mbox = lv_event_get_current_target(e);
         const char *txt = lv_msgbox_get_active_btn_text(mbox);
-        if (txt && !strcmp(txt, "Run")) fluidNC.runFile(selectedFile);
-        else if (txt && !strcmp(txt, "Delete")) fluidNC.deleteFile(selectedFile);
+        if (txt && !strcmp(txt, "Run")) fluidNC.runFile(selectedPath);
+        else if (txt && !strcmp(txt, "Delete"))
+        {
+            if (fluidNC.deleteFile(selectedPath)) fluidNC.requestFileList(curDir); // show it gone
+        }
         lv_msgbox_close(mbox);
     }
 
-    void openConfirmFor(const char *filename)
+    void openConfirmFor(const FluidNCFileEntry &entry)
     {
-        strncpy(selectedFile, filename, sizeof(selectedFile) - 1);
-        selectedFile[sizeof(selectedFile) - 1] = '\0';
+        if (!joinPath(selectedPath, sizeof(selectedPath), curDir, entry.name)) return;
 
         static const char *btns[] = {"Run", "Delete", "Cancel", ""};
-        lv_obj_t *mbox = lv_msgbox_create(NULL, "File", selectedFile, btns, false);
+        lv_obj_t *mbox = lv_msgbox_create(NULL, "File", entry.name, btns, false);
+        // One scrolling line, like the hub: a long name wrapped over
+        // several lines would push the buttons off the round panel.
+        lv_obj_t *text = lv_msgbox_get_text(mbox);
+        lv_obj_set_width(text, 170);
+        lv_label_set_long_mode(text, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_center(mbox);
         lv_obj_add_event_cb(mbox, confirmCb, LV_EVENT_VALUE_CHANGED, NULL);
     }
@@ -111,18 +198,22 @@ namespace
 
         // A font change forces a label relayout, unlike the colour write
         // above -- skip it unless the size bucket actually flipped, since
-        // this runs for every chip on every animation frame.
-        UiRingIconSize want = uiRingIconSize(nearness, iconSize[i]);
-        if (want != iconSize[i])
+        // this runs for every chip on every animation frame. The bucket is
+        // kept on the chip itself (its user data): chips are reused for
+        // different entries as the list scrolls, so `i` isn't a stable key.
+        (void)i;
+        UiRingIconSize current = (UiRingIconSize)(intptr_t)lv_obj_get_user_data(chip);
+        UiRingIconSize want = uiRingIconSize(nearness, current);
+        if (want != current)
         {
-            iconSize[i] = want;
+            lv_obj_set_user_data(chip, (void *)(intptr_t)want);
             lv_obj_set_style_text_font(icon, uiRingIconFont(want), 0);
         }
     }
 
-    lv_obj_t *makeChip()
+    lv_obj_t *makeChip(lv_obj_t *parent)
     {
-        lv_obj_t *chip = lv_obj_create(screenRoot);
+        lv_obj_t *chip = lv_obj_create(parent);
         lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(chip, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(chip, 0, 0);
@@ -135,21 +226,29 @@ namespace
 
         lv_obj_t *icon = lv_label_create(chip);
         lv_label_set_text(icon, LV_SYMBOL_FILE);
-        // Must match iconSize[]'s reset value below -- onItemStyle only
-        // writes a font when the bucket CHANGES, so a mismatch here leaves
-        // chips drawn at the wrong size until they happen to cross a band.
+        // Must match the chip's recorded bucket (user data, 0 = small) --
+        // onItemStyle only writes a font when the bucket CHANGES, so a
+        // mismatch leaves the chip drawn at the wrong size.
+        lv_obj_set_user_data(chip, (void *)(intptr_t)UiRingIconSmall);
         lv_obj_set_style_text_font(icon, uiRingIconFont(UiRingIconSmall), 0);
         lv_obj_center(icon);
         return chip;
     }
 
+    // The ring has brought entry `index` onto the arc on this chip.
+    void bindChip(lv_obj_t *chip, int index)
+    {
+        lv_obj_t *icon = lv_obj_get_child(chip, 0);
+        if (!icon) return;
+        FluidNCFileEntry entry;
+        bool isDir = fluidNC.fileListEntry(index, entry) && entry.isDir;
+        lv_label_set_text(icon, isDir ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE);
+    }
+
     void rebuildList()
     {
-        ring.clear();
-        for (int i = 0; i < RadialRing::MAX_ITEMS; i++) iconSize[i] = UiRingIconSmall;
         int count = fluidNC.fileListCount();
-        for (int i = 0; i < count && i < RadialRing::MAX_ITEMS; i++) ring.addItem(makeChip());
-
+        ring.setCount(count);
         if (count == 0) showEmptyHub();
         else refreshHub(ring.selectedIndex());
     }
@@ -158,7 +257,10 @@ namespace
     {
         FluidNCFileEntry entry;
         if (!fluidNC.fileListEntry(index, entry)) return;
-        fluidNC.runFile(entry.name);
+        char path[PATH_BUF];
+        if (!joinPath(path, sizeof(path), curDir, entry.name)) return;
+        if (entry.isDir) openFolder(path);
+        else fluidNC.runFile(path); // refuses a path too long -- the hub already says so
     }
 
     void hubTapCb(lv_event_t *e)
@@ -229,22 +331,34 @@ lv_obj_t *uiFilesCreate()
     // tail past them closes up toward the arc edge where it's fading out
     // anyway. Same number of files on screen, far more legible ordering.
     ring.create(screenRoot, RING_RADIUS, RING_SIZE_NEAR, RING_SIZE_FAR, LV_OPA_COVER, LV_OPA_TRANSP);
-    ring.setArcLayout(30.0f, 132.0f);
+    ring.setArcLayout(RING_STEP_DEG, RING_HALF_ARC_DEG);
+    ring.setVirtual(RING_POOL, makeChip, bindChip);
     ring.setSpread(RING_SPREAD);
     ring.setOnOpen(onCardOpen);
     ring.setOnItemStyle(onItemStyle);
     ring.setOnSelect(refreshHub);
 
     lv_obj_move_foreground(hub);
-    showEmptyHub();
+    showLoadingHub();
 
-    addBackButton(screenRoot);
+    addBackButton(screenRoot, backBtnCb);
     return screenRoot;
 }
 
 void uiFilesSetFocused(bool focused)
 {
-    if (focused) fluidNC.requestFileList();
+    // Refreshes whichever folder you were last in, rather than dropping
+    // you back at the root every time you look away.
+    if (!focused) return;
+    fluidNC.requestFileList(curDir);
+    // The fetch waits for a connection; until then, say why nothing's
+    // coming rather than show "Loading..." indefinitely.
+    if (!fluidNC.status().connected && ring.count() == 0) showHubMessage("Offline", "Can't reach plotter");
+}
+
+bool uiFilesHandleBack()
+{
+    return goUp();
 }
 
 void uiFilesHandleRotate(int32_t delta)
@@ -263,12 +377,20 @@ void uiFilesHandleDoubleClick()
 {
     FluidNCFileEntry entry;
     if (!fluidNC.fileListEntry(ring.selectedIndex(), entry)) return;
-    openConfirmFor(entry.name);
+    if (entry.isDir) return; // a folder has no Run/Delete
+    openConfirmFor(entry);
 }
 
 void uiFilesUpdate()
 {
     if (!fluidNC.fileListReady()) return;
     fluidNC.clearFileListReady();
+
+    // A list for a folder we've since left (opened, then backed out before
+    // it arrived) -- the one we're in now is still on its way.
+    char dir[SD_DIR_MAX];
+    fluidNC.fileListDir(dir, sizeof(dir));
+    if (strcmp(dir, curDir) != 0) return;
+
     rebuildList();
 }

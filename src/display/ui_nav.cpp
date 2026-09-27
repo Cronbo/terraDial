@@ -288,7 +288,9 @@ namespace UiNav
             if (menuDelta != 0) uiFilesHandleRotate(menuDelta);
             if (ev == ButtonEvent::Click) uiFilesHandleSelect();
             else if (ev == ButtonEvent::DoubleClick) uiFilesHandleDoubleClick();
-            else if (ev == ButtonEvent::LongPress) goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            // Up a folder first, like Settings steps out of a category.
+            else if (ev == ButtonEvent::LongPress && !uiFilesHandleBack())
+                goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
             return;
         }
 

@@ -1,7 +1,7 @@
 #pragma once
 #include <lvgl.h>
 
-// Lucide "lightbulb" (lucide.dev/icons/lightbulb), rasterised from the upstream SVG to
+// Lucide "folder" (lucide.dev/icons/folder), rasterised from the upstream SVG to
 // LV_IMG_CF_ALPHA_8BIT bitmaps -- one per size the dial draws it at.
 //
 // They are alpha-only, so they carry no colour of their own: LVGL paints
@@ -14,8 +14,8 @@
 // parent also has opacity < 255 sends LVGL down an offscreen-layer path
 // that proved unreliable here -- the icon intermittently vanished.
 //
-// Regenerate with: python tools/gen_lucide_icon.py lightbulb
+// Regenerate with: python tools/gen_lucide_icon.py folder
 // 20x20
-extern const lv_img_dsc_t iconLightbulb;
+extern const lv_img_dsc_t iconFolder;
 // 28x28
-extern const lv_img_dsc_t iconLightbulbLarge;
+extern const lv_img_dsc_t iconFolderLarge;

@@ -16,7 +16,9 @@
 class RadialRing
 {
 public:
-    static const int MAX_ITEMS = 40; // matches SdFileList::MAX_FILES, the largest list that reaches a ring
+    // Items a non-virtual ring can hold, and the largest chip pool a virtual
+    // one can have. A virtual ring's list length is unlimited.
+    static const int MAX_ITEMS = 40;
 
     // radius/sizes are in px on the 240x240 panel. The defaults are the
     // original evenly-spaced tuning; every screen now overrides them, since
@@ -65,6 +67,23 @@ public:
     void addItem(lv_obj_t *item);
     void clear();
 
+    // Virtual mode, for lists too long to give every entry its own chip
+    // (the Jobs screen's SD folders). Arc layout only: the ring builds
+    // `poolSize` chips with createItem() once, and as the list scrolls it
+    // hands each chip to whichever entry has come into view, calling
+    // bindItem(chip, index) so the owner can dress it for that entry. A
+    // chip keeps its entry for as long as the entry stays on screen, so
+    // binds happen only as entries enter.
+    //
+    // poolSize must cover everything the arc can show at once:
+    // floor(2 * halfArcDeg / stepDeg) + 1. Call after setArcLayout().
+    void setVirtual(int poolSize, lv_obj_t *(*createItem)(lv_obj_t *parent),
+                    void (*bindItem)(lv_obj_t *item, int index));
+    // Virtual mode: the list's length. Resets the selection to the first
+    // entry and rebinds every chip, since the entries behind the indices
+    // have changed.
+    void setCount(int count);
+
     void selectNext();
     void selectPrev();
     int selectedIndex() const { return selectedIndex_; }
@@ -81,7 +100,9 @@ public:
     // Called for every item on every layout pass. `nearness` is 1.0 at the
     // top slot and 0.0 diametrically opposite, so callers can blend colour,
     // swap icon sizes, etc. Runs AFTER the ring applies its own size and
-    // opacity, so a caller may override either.
+    // opacity, so a caller may override either. In virtual mode `index` is
+    // the list entry the chip currently shows, and the same chip turns up
+    // under different indices over time -- keep per-chip state on the chip.
     void setOnItemStyle(void (*cb)(lv_obj_t *item, int index, float nearness)) { onItemStyle_ = cb; }
 
     // Re-applies layout/styling without moving the ring (e.g. after the
@@ -96,7 +117,18 @@ private:
     lv_obj_t *parent_ = nullptr;
     lv_obj_t *items_[MAX_ITEMS] = {nullptr};
     float nearness_[MAX_ITEMS] = {0.0f}; // per-item, from the last layout pass -- used to stack them
+    // Logical list length. Equal to the number of chips, except in virtual
+    // mode, where the chips are the pool and this is the list.
     int count_ = 0;
+
+    bool virtual_ = false;
+    int poolCount_ = 0;
+    int slotIndex_[MAX_ITEMS] = {0}; // virtual: the entry each chip shows, -1 = unbound
+    void (*bindItem_)(lv_obj_t *item, int index) = nullptr;
+    int objCount() const { return virtual_ ? poolCount_ : count_; }
+    // The entry chip `slot` shows (identity outside virtual mode).
+    int indexOfSlot(int slot) const { return virtual_ ? slotIndex_[slot] : slot; }
+    void assignSlots(float offsetDeg);
     int selectedIndex_ = 0;
 
     lv_coord_t radius_ = 74;
