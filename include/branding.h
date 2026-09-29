@@ -34,10 +34,14 @@ namespace Branding
     // a fielded panel -- but the canonical name belongs here regardless.
     // A local checkout may still have the old name as its git remote; that's
     // git's business, not the firmware's.
-    inline const char *githubOwner() { return "warderoid-ctrl"; }
+    //
+    // This is the repo whose releases the panel updates itself from, so it
+    // must be the one that publishes this firmware -- a fork left pointing
+    // at its parent would have its panels "update" to the parent's builds.
+    inline const char *githubOwner() { return "theworkisthework"; }
     inline const char *githubRepo() { return "terraDial"; }
 
-    inline const char *githubUrl() { return "https://github.com/warderoid-ctrl/terraDial"; }
+    inline const char *githubUrl() { return "https://github.com/theworkisthework/terraDial"; }
 
     // TODO: paste the real invite. Left empty deliberately -- an invented
     // invite code would render a QR that silently goes nowhere, which is
