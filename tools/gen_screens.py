@@ -6,8 +6,8 @@ panel's framebuffer from a build machine. Everything here is transcribed
 from the layout code -- palette hex from include/palette.h, ring radii and
 chip sizes from radial_ring.h/ui_dial.cpp, arc angles from the setArcLayout()
 calls, hub sizes and font sizes from each ui_*.cpp -- so the proportions and
-colours match what the firmware draws. Icons are simplified vector stand-ins
-for LVGL's symbol font, which is the main place these diverge.
+colours match what the firmware draws. Icons are the real Lucide glyphs the
+firmware's lucide_* fonts carry, at the font size each label uses.
 
 Keep in sync by hand if a screen's geometry changes.
 
@@ -90,104 +90,81 @@ def mix(c1, c2, t):
 
 
 # ---------------------------------------------------------------- icons
-def icon(parts, cx, cy, kind, size, col):
-    s = size / 2.0
-    lw = max(1.4, size / 11.0)
-    st = 'stroke="%s" stroke-width="%g" fill="none" stroke-linecap="round" stroke-linejoin="round"' % (col, lw)
-    if kind == "file":
-        parts.append('<path d="M%g %g h%g l%g %g v%g h-%g z" %s/>'
-                     % (cx - s * .6, cy - s, s * .8, s * .4, s * .4, s * 1.6, s * 1.2, st))
-    elif kind == "target":
-        circle(parts, cx, cy, s * .8, "none", col, lw)
-        parts.append('<path d="M%g %g h%g M%g %g v%g" %s/>' % (cx - s, cy, s * 2, cx, cy - s, s * 2, st))
-    elif kind == "pen":
-        parts.append('<path d="M%g %g l%g %g M%g %g l%g %g" %s/>'
-                     % (cx - s * .7, cy + s * .7, s * 1.4, -s * 1.4, cx - s * .7, cy + s * .7, s * .35, -s * .1, st))
-    elif kind == "bulb":  # Lucide lightbulb, simplified
-        parts.append('<path d="M%g %g a%g %g 0 1 1 %g 0" %s/>' % (cx - s * .55, cy, s * .55, s * .55, s * 1.1, st))
-        parts.append('<path d="M%g %g v%g M%g %g v%g M%g %g h%g M%g %g h%g" %s/>'
-                     % (cx - s * .55, cy, s * .35, cx + s * .55, cy, s * .35,
-                        cx - s * .35, cy + s * .6, s * .7, cx - s * .22, cy + s * .9, s * .44, st))
-    elif kind == "home":
-        parts.append('<path d="M%g %g l%g %g l%g %g M%g %g v%g h%g v-%g" %s/>'
-                     % (cx - s, cy, s, -s * .85, s, s * .85, cx - s * .7, cy - s * .1,
-                        s * 1.1, s * 1.4, s * 1.1, st))
-    elif kind == "gauge":  # a clock face -- job progress is a time story
-        circle(parts, cx, cy, s * .85, "none", col, lw)
-        parts.append('<path d="M%g %g v-%g M%g %g h%g" %s/>'
-                     % (cx, cy, s * .5, cx, cy, s * .42, st))
-    elif kind == "image":  # stands in for Lucide camera on the Photo item
-        rect(parts, cx - s * .85, cy - s * .7, s * 1.7, s * 1.4, s * .2, "none", stroke=col)
-        circle(parts, cx - s * .3, cy - s * .22, s * .18, col)
-        parts.append('<path d="M%g %g l%g %g l%g %g" %s/>'
-                     % (cx - s * .7, cy + s * .55, s * .6, -s * .6, s * .95, s * .95, st))
-    elif kind == "stop":
-        rect(parts, cx - s * .7, cy - s * .7, s * 1.4, s * 1.4, s * .2, col)
-    elif kind == "warn":
-        parts.append('<path d="M%g %g l%g %g h-%g z" %s/>' % (cx, cy - s, s, s * 1.7, s * 2, st))
-        parts.append('<path d="M%g %g v%g" %s/>' % (cx, cy - s * .15, s * .55, st))
-        circle(parts, cx, cy + s * .68, lw * .5, col)
-    elif kind == "gear":
-        circle(parts, cx, cy, s * .42, "none", col, lw)
-        for i in range(6):
-            a = i * math.pi / 3
-            parts.append('<path d="M%g %g L%g %g" %s/>'
-                         % (cx + math.cos(a) * s * .62, cy + math.sin(a) * s * .62,
-                            cx + math.cos(a) * s, cy + math.sin(a) * s, st))
-    elif kind == "wifi":
-        for i, rr in enumerate((s * .45, s * .75, s)):
-            parts.append('<path d="M%g %g a%g %g 0 0 1 %g 0" %s/>'
-                         % (cx - rr, cy + s * .45 - i * 2, rr, rr, rr * 2, st))
-        circle(parts, cx, cy + s * .6, lw * .6, col)
-    elif kind == "eye":
-        parts.append('<path d="M%g %g q%g %g %g 0 q%g %g %g 0" %s/>'
-                     % (cx - s, cy, s, -s * .95, s * 2, -s, s * .95, -s * 2, st))
-        circle(parts, cx, cy, s * .3, "none", col, lw)
-    elif kind == "list":
-        for i in (-1, 0, 1):
-            parts.append('<path d="M%g %g h%g" %s/>' % (cx - s * .8, cy + i * s * .55, s * 1.6, st))
-    elif kind == "drive":
-        rect(parts, cx - s, cy - s * .7, s * 2, s * 1.4, s * .25, "none", stroke=col)
-        circle(parts, cx, cy, s * .32, col)
-    elif kind == "play":
-        parts.append('<path d="M%g %g l%g %g l-%g %g z" fill="%s"/>'
-                     % (cx - s * .5, cy - s * .7, s * 1.3, s * .7, s * 1.3, s * .7, col))
-    elif kind == "pause":
-        rect(parts, cx - s * .5, cy - s * .6, s * .35, s * 1.2, 1, col)
-        rect(parts, cx + s * .15, cy - s * .6, s * .35, s * 1.2, 1, col)
-    elif kind == "sdcard":  # stands in for Lucide card-sim on the Jobs item
-        parts.append('<path d="M%g %g h%g l%g %g v%g h-%g z" %s/>'
-                     % (cx - s * .45, cy - s * .8, s * .75, s * .35, s * .35, s * 1.25, s * 1.1, st))
-        for dx in (-.2, .05, .3):
-            parts.append('<path d="M%g %g v%g" %s/>' % (cx + s * dx, cy - s * .5, s * .35, st))
-    elif kind == "folder":
-        parts.append('<path d="M%g %g h%g l%g %g h%g v%g h-%g z" %s/>'
-                     % (cx - s * .85, cy - s * .6, s * .6, s * .15, s * .2, s * 1.1, s * 1.1, s * 1.7, st))
-    elif kind == "backspace":
-        parts.append('<path d="M%g %g h%g v%g h-%g l-%g -%g z" %s/>'
-                     % (cx - s * .4, cy - s * .55, s * 1.3, s * 1.1, s * 1.3, s * .5, s * .55, st))
-        parts.append('<path d="M%g %g l%g %g M%g %g l-%g %g" %s/>'
-                     % (cx - s * .05, cy - s * .25, s * .5, s * .5, cx + s * .45, cy - s * .25, s * .5, s * .5, st))
-    elif kind == "check":
-        parts.append('<path d="M%g %g l%g %g l%g -%g" %s/>' % (cx - s * .7, cy, s * .45, s * .45, s * .95, s * .9, st))
-    elif kind == "close":
-        parts.append('<path d="M%g %g l%g %g M%g %g l-%g %g" %s/>'
-                     % (cx - s * .6, cy - s * .6, s * 1.2, s * 1.2, cx + s * .6, cy - s * .6, s * 1.2, s * 1.2, st))
-    elif kind == "back":
-        parts.append('<path d="M%g %g l-%g %g l%g %g" %s/>' % (cx + s * .4, cy - s * .6, s * .7, s * .6, s * .7, s * .6, st))
+# Lucide icons (lucide.dev, ISC; notices in src/display/fonts/LICENSE-lucide.txt),
+# copied from lucide-static at the version tools/gen_lucide_font.py pins, so
+# these are the same glyphs the firmware's lucide_* fonts draw. 24x24 boxes,
+# stroked at 2 -- the font scales both with its pixel size, and so does icon().
+LUCIDE = {
+    "house": '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/>'
+             '<path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    "move": '<path d="M12 2v20"/><path d="m15 19-3 3-3-3"/><path d="m19 9 3 3-3 3"/>'
+            '<path d="M2 12h20"/><path d="m5 9-3 3 3 3"/><path d="m9 5 3-3 3 3"/>',
+    "pen": '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+    "card-sim": '<path d="M12 14v4"/>'
+                '<path d="M14.172 2a2 2 0 0 1 1.414.586l3.828 3.828A2 2 0 0 1 20 7.828V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>'
+                '<path d="M8 14h8"/><rect x="8" y="10" width="8" height="8" rx="2"/>',
+    "folder": '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    "file": '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>'
+            '<path d="M14 2v5a1 1 0 0 0 1 1h5"/>',
+    "camera": '<path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/>'
+              '<circle cx="12" cy="13" r="3"/>',
+    "lightbulb": '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>'
+                 '<path d="M9 18h6"/><path d="M10 22h4"/>',
+    "settings": '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/>'
+                '<circle cx="12" cy="12" r="3"/>',
+    "octagon-x": '<path d="m15 9-6 6"/>'
+                 '<path d="M2.586 16.726A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2h6.624a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586z"/>'
+                 '<path d="m9 9 6 6"/>',
+    "square": '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+    "pause": '<rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/>',
+    "play": '<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>',
+    "wifi": '<path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/>'
+            '<path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/>',
+    "sliders-horizontal": '<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/>'
+                          '<path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>',
+    "monitor": '<rect width="20" height="14" x="2" y="3" rx="2"/>'
+               '<line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    "eye": '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>'
+           '<circle cx="12" cy="12" r="3"/>',
+    "delete": '<path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/>'
+              '<path d="m12 9 6 6"/><path d="m18 9-6 6"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>'
+                      '<path d="M12 9v4"/><path d="M12 17h.01"/>',
+}
+
+
+def icon(parts, cx, cy, name, px, col):
+    """A Lucide glyph at a lucide_<px> font's size, centred on (cx, cy)."""
+    parts.append(
+        '<g transform="translate(%g %g) scale(%g)" fill="none" stroke="%s" stroke-width="2" '
+        'stroke-linecap="round" stroke-linejoin="round">%s</g>'
+        % (cx - px / 2.0, cy - px / 2.0, px / 24.0, col, LUCIDE[name])
+    )
+
+
+def ring_icon_px(nearness):
+    """uiRingIconFont(uiRingIconSize(...)) in ui_widgets.cpp, settled
+    (no hysteresis): lucide_32 in the top slot, 24 mid-ring, 14 beyond."""
+    if nearness > 0.90:
+        return 32
+    return 24 if nearness > 0.52 else 14
 
 
 def back_button(parts):
     """The shared bottom-centre back chip (ui_screen_shell.cpp)."""
     circle(parts, 120, 214, 18, BG_SECONDARY)
-    icon(parts, 120, 214, "back", 14, TEXT_MUTED)
+    icon(parts, 120, 214, "chevron-left", 16, TEXT_MUTED)
 
 
 def estop_pip(parts):
     """The stop pip beside it, on screens that can move the machine
     (ui_screen_shell.cpp's addEstopButton)."""
     circle(parts, 82, 208, 13, ALERT)
-    icon(parts, 82, 208, "stop", 10, ACCENT_FG)
+    icon(parts, 82, 208, "octagon-x", 12, ACCENT_FG)
 
 
 # ------------------------------------------------------- ring renderers
@@ -217,11 +194,11 @@ def full_ring(parts, items, selected, radius=DIAL_RADIUS, near=DIAL_NEAR, far=DI
         cx, cy = 120 + radius * math.sin(rad), 120 - radius * math.cos(rad)
         if alert:
             circle(parts, cx, cy, size / 2, ALERT)
-            icon(parts, cx, cy, kind, size * .45, ACCENT_FG)
+            icon(parts, cx, cy, kind, ring_icon_px(nearness), ACCENT_FG)
         else:
             circle(parts, cx, cy, size / 2, mix(ACCENT, BG_SECONDARY, nearness),
                    opacity=opa_far + (1 - opa_far) * nearness)
-            icon(parts, cx, cy, kind, size * .45, mix(ACCENT_FG, TEXT_MUTED, nearness))
+            icon(parts, cx, cy, kind, ring_icon_px(nearness), mix(ACCENT_FG, TEXT_MUTED, nearness))
 
 
 def arc_ring(parts, kinds, selected, step_deg, half_arc, radius=80, near=60, far=20,
@@ -241,7 +218,7 @@ def arc_ring(parts, kinds, selected, step_deg, half_arc, radius=80, near=60, far
         cx, cy = 120 + radius * math.sin(rad), 120 - radius * math.cos(rad)
         circle(parts, cx, cy, size / 2, mix(ACCENT, BG_SECONDARY, nearness),
                opacity=opa_far + (1 - opa_far) * nearness)
-        icon(parts, cx, cy, kind, size * .45, mix(ACCENT_FG, TEXT_MUTED, nearness))
+        icon(parts, cx, cy, kind, ring_icon_px(nearness), mix(ACCENT_FG, TEXT_MUTED, nearness))
 
 
 def hub(parts, size, lines):
@@ -257,8 +234,8 @@ def screen_home():
     head(p)
     # Must match DIAL_ITEMS in src/display/ui_dial.cpp:
     # Home XY, Jog, Pen, Jobs, Photo, E-Stop, Lights, Settings.
-    items = [("home", 0), ("target", 0), ("pen", 0), ("sdcard", 0),
-             ("image", 0), ("stop", 1), ("bulb", 0), ("gear", 0)]
+    items = [("house", 0), ("move", 0), ("pen", 0), ("card-sim", 0),
+             ("camera", 0), ("octagon-x", 1), ("lightbulb", 0), ("settings", 0)]
     full_ring(p, items, 0)
     hub(p, DIAL_HUB, [("Home XY", -8, 14, TEXT, "600"), ("IDLE", 12, 12, TEXT_MUTED, "400")])
     tail(p)
@@ -272,7 +249,7 @@ def screen_jobs():
     arc_ring(p, ["folder", "folder", "file", "file", "file", "file", "file"], 2, 30.0, 132.0)
     hub(p, 96, [("flow_red.gcode", -18, 11, TEXT, "600"),
                 ("8.2 MB", 4, 12, TEXT_MUTED, "400")])
-    icon(p, 106, 144, "play", 11, ACCENT)
+    icon(p, 104, 144, "play", 12, ACCENT)
     text(p, 126, 144, "Run", 12, ACCENT, "600")
     back_button(p)
     tail(p)
@@ -303,7 +280,7 @@ def screen_jog():
 def screen_pen():
     p = []
     head(p)
-    icon(p, 108, 34, "pen", 14, TEXT_MUTED)
+    icon(p, 106, 34, "pen", 14, TEXT_MUTED)
     text(p, 126, 34, "PEN", 12, TEXT_MUTED)
     rect(p, 50, 88, 140, 64, 20, BG_PANEL)
     rect(p, 53, 91, 66, 58, 17, ACCENT)
@@ -320,7 +297,7 @@ def screen_pen():
 def screen_home_confirm():
     p = []
     head(p)
-    icon(p, 120, 62, "home", 24, ACCENT)
+    icon(p, 120, 62, "house", 24, ACCENT)
     text(p, 120, 92, "Clear the bed first", 16, TEXT, "600")
     text(p, 120, 112, "Lift the pen and check the", 12, TEXT_MUTED)
     text(p, 120, 126, "carriage can move freely.", 12, TEXT_MUTED)
@@ -358,7 +335,7 @@ def screen_lights():
 def screen_settings_ring():
     p = []
     head(p)
-    arc_ring(p, ["wifi", "drive", "eye", "list"], 0, 40.0, 132.0,
+    arc_ring(p, ["wifi", "sliders-horizontal", "monitor", "info"], 0, 40.0, 132.0,
              radius=76, near=64, far=26, opa_far=110 / 255.0)
     hub(p, 82, [("Wi-Fi", -8, 14, TEXT, "600"), ("open", 12, 12, ACCENT, "400")])
     back_button(p)
@@ -402,9 +379,9 @@ def screen_job_progress():
     text(p, 120, 84, "6:18   ~9 min left", 12, TEXT_MUTED)
     text(p, 120, 106, "42%", 32, TEXT, "600")
     circle(p, 86, 164, 29, BG_SECONDARY)
-    icon(p, 86, 164, "pause", 20, TEXT)
+    icon(p, 86, 164, "pause", 24, TEXT)
     circle(p, 154, 164, 29, ALERT)
-    icon(p, 154, 164, "stop", 16, ACCENT_FG)
+    icon(p, 154, 164, "square", 24, ACCENT_FG)
     tail(p)
     return "job-progress", p
 
@@ -413,7 +390,7 @@ def screen_estop():
     p = []
     head(p)
     circle(p, 120, 106, 78, ALERT)
-    icon(p, 120, 76, "warn", 24, ACCENT_FG)
+    icon(p, 120, 76, "octagon-x", 24, ACCENT_FG)
     text(p, 120, 104, "E-STOP", 18, ACCENT_FG, "700")
     text(p, 120, 128, "Feed hold", 12, ACCENT_FG)
     text(p, 120, 142, "+ soft reset", 12, ACCENT_FG)
@@ -425,7 +402,7 @@ def screen_estop():
 def screen_alarm():
     p = []
     head(p)
-    icon(p, 120, 62, "warn", 24, ACCENT)
+    icon(p, 120, 62, "triangle-alert", 24, ACCENT)
     text(p, 120, 92, "Alarm active", 16, TEXT, "600")
     text(p, 120, 112, "Clear the bed, then clear", 12, TEXT_MUTED)
     text(p, 120, 126, "the alarm to continue.", 12, TEXT_MUTED)
@@ -504,8 +481,8 @@ def screen_keyboard():
     radius, spread, opa_far = 100, 0.35, 110 / 255.0
     # Page one of a password field: letters, then the action keys.
     keys = [(c, "char") for c in "abcdefghijklmnopqrstuvwxyz"] + [
-        ("ABC", "word"), ("SP", "word"), ("backspace", "icon"),
-        ("eye", "icon"), ("check", "icon"), ("close", "icon")]
+        ("ABC", "word"), ("SP", "word"), ("delete", "icon"),
+        ("eye", "icon"), ("check", "icon"), ("x", "icon")]
     weight = {"char": 1.0, "icon": 1.3, "word": 1.6}
     sel = 7
 
@@ -534,7 +511,7 @@ def screen_keyboard():
         opa = 1.0 if is_sel else opa_far + (1 - opa_far) * nearness
         p.append('<g opacity="%.3f">' % opa)
         if kind == "icon":
-            icon(p, cx, cy, label, px * .8, col)
+            icon(p, cx, cy, label, px, col)
         else:
             text(p, cx, cy, label, px, col, "600" if is_sel else "400")
         p.append("</g>")
