@@ -14,6 +14,7 @@
 #include "../input/encoder.h"
 #include "radial_keyboard.h"
 #include "screen_sleep.h"
+#include "demo_tour.h"
 #include "../net/fluidnc_client.h"
 #include "../config/settings.h"
 
@@ -226,11 +227,18 @@ namespace UiNav
         int32_t delta = jogWheel.takeRotationDelta();
         ButtonEvent ev = jogWheel.takeButtonEvent();
 
+        // A real hand on the knob ends a demo tour on the spot; with no
+        // real input, the tour may supply its next scripted turn or click,
+        // which then flows through exactly the same handling below.
+        if (delta != 0 || ev != ButtonEvent::None) DemoTour::noteRealInput();
+        else DemoTour::takeInput(delta, ev);
+        bool scripted = DemoTour::isRunning();
+
         // Waking the panel must not do anything else. Both events were
         // already consumed by the take*() calls above, so returning here
         // discards them -- the turn or click that lit the screen can't also
         // jog an axis or open a menu.
-        if (delta != 0 || ev != ButtonEvent::None)
+        if (!scripted && (delta != 0 || ev != ButtonEvent::None))
         {
             if (ScreenSleep::noteInputAndWake()) return;
         }
@@ -383,4 +391,6 @@ namespace UiNav
     {
         goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
     }
+
+    bool isOnDial() { return currentIndex == DIAL_SCREEN_INDEX; }
 }

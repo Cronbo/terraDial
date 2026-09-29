@@ -21,6 +21,7 @@ void uiDialSetHandlers(void (*onOpen)(int index), bool (*onStatus)());
 void uiDialSelectNext();
 void uiDialSelectPrev();
 void uiDialOpenSelected();
+int uiDialSelectedIndex(); // position in DIAL_ITEMS (ui_dial.cpp)
 
 // Live machine status, shown in the centre hub.
 void uiDialUpdate(const FluidNCStatus &st);

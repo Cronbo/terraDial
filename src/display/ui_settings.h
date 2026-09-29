@@ -12,6 +12,10 @@ void uiSettingsHandleClick();
 // screen entirely when this returns false.
 bool uiSettingsHandleBack();
 
+// Which category the ring has selected: 0 Wi-Fi, 1 Machine, 2 Display,
+// 3 About. (The demo tour steers by it.)
+int uiSettingsSelectedCategory();
+
 // Opens the Wi-Fi category and starts a network scan straight away -- the
 // first-boot path for a panel with no SSID configured (see UiNav::begin()).
 // Blocks for the few seconds the scan takes, like tapping the SSID line.

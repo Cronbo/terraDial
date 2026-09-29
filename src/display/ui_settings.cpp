@@ -14,6 +14,7 @@
 #include "branding.h"
 #include "version.h"
 #include "../net/ota_updater.h"
+#include "../net/demo_mode.h"
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
@@ -858,6 +859,31 @@ namespace
         lv_obj_add_flag(updateBar, LV_OBJ_FLAG_HIDDEN);
     }
 
+    void demoModeCb(lv_event_t *e)
+    {
+        lv_obj_t *sw = lv_event_get_target(e);
+        Demo::set(lv_obj_has_state(sw, LV_STATE_CHECKED));
+    }
+
+    // Demo mode (net/demo_mode.h): a simulated plotter and lights, so the
+    // panel can be shown working with no machine around. Here rather than
+    // on a main screen because it's a thing you set up once for a showing,
+    // not something to hit by accident mid-job.
+    void addDemoControls(lv_obj_t *card)
+    {
+        lv_obj_t *row = uiMakeRow(card, "Demo mode");
+        lv_obj_t *sw = uiMakeSwitch(row, Demo::isOn());
+        lv_obj_add_event_cb(sw, demoModeCb, LV_EVENT_VALUE_CHANGED, NULL);
+
+        lv_obj_t *hint = lv_label_create(card);
+        lv_label_set_text(hint, "Simulated plotter and lights -- nothing is sent to the machine. Left untouched for 20s it tours itself; touch to take over. Off again after a restart.");
+        lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(hint, lv_pct(100));
+        lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(hint, Palette::textMuted(), 0);
+    }
+
     lv_obj_t *makeAboutCard()
     {
         lv_obj_t *card = makeCardShell("ABOUT");
@@ -907,6 +933,7 @@ namespace
         lv_obj_set_style_text_color(aboutUptimeLbl, Palette::textMuted(), 0);
 
         addUpdateControls(card);
+        addDemoControls(card);
 
         return card;
     }
@@ -1115,6 +1142,8 @@ void uiSettingsHandleClick()
     if (openPanel >= 0) return; // controls inside a panel are touch-operated
     ring.openSelected();
 }
+
+int uiSettingsSelectedCategory() { return ring.selectedIndex(); }
 
 bool uiSettingsHandleBack()
 {

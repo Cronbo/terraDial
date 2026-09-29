@@ -13,8 +13,11 @@
 #include "display/ui_job_progress.h"
 #include "display/ui_park.h"
 #include "display/screen_sleep.h"
+#include "display/demo_badge.h"
+#include "display/demo_tour.h"
 #include "input/encoder.h"
 #include "led/panel_ring.h"
+#include "net/demo_mode.h"
 #include "net/fluidnc_client.h"
 #include "net/terrapixel_client.h"
 #include "net/wifi_manager.h"
@@ -107,6 +110,7 @@ static void touchpadRead(lv_indev_drv_t *drv, lv_indev_data_t *data)
         return;
     }
 
+    DemoTour::noteRealInput(); // a hand on the glass ends a demo tour
     if (ScreenSleep::noteInputAndWake()) swallowUntilRelease = true;
     if (swallowUntilRelease)
     {
@@ -211,7 +215,12 @@ static void networkTask(void *)
     for (;;)
     {
         WifiManager::update();
-        if (WifiManager::isReady())
+        // Demo mode (demo_mode.h) runs without any network, so the clients
+        // are also updated while it's on -- and while they're still in it,
+        // so they notice it being switched off.
+        bool ready = WifiManager::isReady();
+        bool demo = Demo::isOn() || fluidNC.inDemo() || terraPixel.inDemo();
+        if (ready || demo)
         {
             fluidNC.update();
             // terraPixel's HTTP calls block this task for up to a second
@@ -230,7 +239,7 @@ static void networkTask(void *)
             // holds this task for the length of the transfer. It only runs
             // when the About card has actually asked for it, and it refuses
             // outright while the machine is moving (see ota_updater.cpp).
-            OtaUpdater::update();
+            if (ready) OtaUpdater::update();
         }
         vTaskDelay(pdMS_TO_TICKS(2));
     }
@@ -273,7 +282,9 @@ void loop()
 {
     lv_timer_handler();
     jogWheel.update();
+    DemoTour::update(); // before UiNav, so a scripted input lands this iteration
     UiNav::update(); // also drives uiLightsUpdate(), but only while Lights is on screen
+    DemoBadge::update();
 
     // WifiManager::update()/fluidNC.update() deliberately absent -- they run
     // on networkTask (core 0) so their blocking calls can't stall the UI.

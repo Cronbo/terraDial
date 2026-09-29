@@ -6,6 +6,7 @@
 #include <string.h>
 #include "../config/settings.h"
 #include "host_spec.h"
+#include "demo_mode.h"
 
 TerraPixelClient terraPixel;
 
@@ -194,8 +195,54 @@ void TerraPixelClient::requestRefresh() { refreshPending_ = true; }
 
 // ---- networkTask side: everything that can block ----
 
+// Demo mode: the settings the Lights screen asks for are simply taken as
+// the lights' state, which is all the screen can see of the real ones.
+void TerraPixelClient::demoUpdate()
+{
+    if (setDirty_)
+    {
+        setDirty_ = false;
+        status_.filmMode = desiredFilm_;
+        status_.brightness = desiredBrightness_;
+        status_.radius = desiredRadius_;
+    }
+    if (partyPending_)
+    {
+        partyPending_ = false;
+        status_.party = !status_.party;
+    }
+    refreshPending_ = false;
+    const char *mode = status_.party ? "PARTY" : status_.filmMode ? "FILM" : "FOLLOW";
+    strncpy(status_.mode, mode, sizeof(status_.mode) - 1);
+    status_.mode[sizeof(status_.mode) - 1] = '\0';
+}
+
 void TerraPixelClient::update()
 {
+    bool demo = Demo::isOn();
+    if (demo != demoActive_)
+    {
+        demoActive_ = demo;
+        status_ = TerraPixelStatus();
+        if (demo)
+        {
+            status_.reachable = true;
+            status_.filmMode = desiredFilm_;
+            status_.brightness = desiredBrightness_;
+            status_.radius = desiredRadius_;
+        }
+        else
+        {
+            refreshPending_ = true; // read the real lights back
+        }
+        return;
+    }
+    if (demoActive_)
+    {
+        demoUpdate();
+        return;
+    }
+
     if (WiFi.status() != WL_CONNECTED) return;
 
     // Settings first, so a slider drag lands before the next status poll
