@@ -320,6 +320,7 @@ void uiDialSetHandlers(void (*onOpen)(int index), bool (*onStatus)())
 void uiDialSelectNext() { ring.selectNext(); }
 void uiDialSelectPrev() { ring.selectPrev(); }
 void uiDialOpenSelected() { ring.openSelected(); }
+int uiDialSelectedIndex() { return ring.selectedIndex(); }
 
 void uiDialUpdate(const FluidNCStatus &st)
 {

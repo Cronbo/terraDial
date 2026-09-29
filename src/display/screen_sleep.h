@@ -26,4 +26,8 @@ namespace ScreenSleep
     // if that input arrived while asleep -- in which case the caller must
     // discard it rather than acting on it.
     bool noteInputAndWake();
+
+    // Holds off the idle logo and sleep without counting as input -- for
+    // the demo tour, which is busy using the panel with nobody touching it.
+    void keepAwake();
 }

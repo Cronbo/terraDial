@@ -19,4 +19,7 @@ namespace UiNav
     // addEstopButton()), so getting to the stop from a screen that can move
     // the machine is one tap rather than back-out-rotate-open.
     void goEstop();
+
+    // True while the home dial is the screen showing.
+    bool isOnDial();
 }

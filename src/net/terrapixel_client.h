@@ -40,8 +40,10 @@ public:
     void begin();
 
     // networkTask only. Applies whatever the UI asked for, and refreshes
-    // status on its own schedule.
+    // status on its own schedule -- or, in demo mode (demo_mode.h), plays
+    // pretend lights that take the settings without any network.
     void update();
+    bool inDemo() const { return demoActive_; }
 
     const TerraPixelStatus &status() const { return status_; }
 
@@ -60,6 +62,8 @@ public:
 
 private:
     TerraPixelStatus status_;
+    bool demoActive_ = false;
+    void demoUpdate();
     volatile bool haveIp_ = false;
     IPAddress resolvedIp_;
     uint16_t resolvedPort_ = 80;

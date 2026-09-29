@@ -6,6 +6,7 @@
 #include <string.h>
 #include "../config/settings.h"
 #include "host_spec.h"
+#include "demo_mode.h"
 
 FluidNCClient fluidNC;
 
@@ -227,8 +228,93 @@ void FluidNCClient::openSocket()
     wsBegun_ = true;
 }
 
+void FluidNCClient::enterDemo()
+{
+    // Close the real channel first: in demo nothing may reach the machine.
+    if (wsBegun_)
+    {
+        wsClient.disconnect();
+        wsBegun_ = false;
+    }
+    // A clean slate -- including over the "websocket dropped" the
+    // disconnect above just recorded, which isn't a fault worth showing.
+    status_ = FluidNCStatus();
+    status_.connected = true;
+    lineLen_ = 0;
+    homePending_ = false;
+    sim_.reset();
+    demoActive_ = true;
+    fileListRequested_ = true; // whatever folder Jobs is in, from the demo card
+    Serial.println("[fluidnc] demo mode on: machine connection closed, nothing is sent");
+}
+
+void FluidNCClient::leaveDemo()
+{
+    status_ = FluidNCStatus(); // disconnected, until the real machine answers
+    lineLen_ = 0;
+    homePending_ = false;
+    demoActive_ = false;
+    lastResolveAttempt_ = 0; // reconnect straight away
+    // Replace the demo card's listing with an empty one, so no demo entry
+    // is left on screen to run against the real machine; the next fetch
+    // brings the real card back.
+    if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        sdFiles_.setResponse("{\"files\":[]}", fileListDir_);
+        xSemaphoreGive(fileMutex_);
+    }
+    fileListRequested_ = true;
+    Serial.println("[fluidnc] demo mode off: reconnecting to the machine");
+}
+
+void FluidNCClient::simSink(void *ctx, char *line)
+{
+    static_cast<FluidNCClient *>(ctx)->handleLine(line);
+}
+
+void FluidNCClient::demoUpdate()
+{
+    servicePendingHome(); // may enqueue, so before the drain
+    OutCmd cmd;
+    while (cmdQueue_ && xQueueReceive(cmdQueue_, &cmd, 0) == pdTRUE)
+        sim_.command(cmd.raw, cmd.text, simSink, this);
+    sim_.tick(simSink, this);
+
+    if (fileListRequested_)
+    {
+        fileListRequested_ = false;
+        char dir[SD_DIR_MAX] = "";
+        if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(50)) == pdTRUE)
+        {
+            strcpy(dir, fileListDir_);
+            xSemaphoreGive(fileMutex_);
+        }
+        String json = sim_.listJson(dir);
+        if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(50)) == pdTRUE)
+        {
+            sdFiles_.setResponse(json, dir);
+            xSemaphoreGive(fileMutex_);
+        }
+    }
+}
+
 void FluidNCClient::update()
 {
+    // Demo mode, and the switches into and out of it, come before anything
+    // network-related: the simulation needs no Wi-Fi at all.
+    bool demo = Demo::isOn();
+    if (demo != demoActive_)
+    {
+        if (demo) enterDemo();
+        else leaveDemo();
+        return;
+    }
+    if (demoActive_)
+    {
+        demoUpdate();
+        return;
+    }
+
     if (WiFi.status() != WL_CONNECTED) return;
 
     if (hostChanged_)

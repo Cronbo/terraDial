@@ -65,6 +65,8 @@ namespace ScreenSleep
         if (!asleep && millis() - lastActivityAt > (uint32_t)timeoutSec * 1000UL) goToSleep();
     }
 
+    void keepAwake() { lastActivityAt = millis(); }
+
     bool noteInputAndWake()
     {
         lastActivityAt = millis();

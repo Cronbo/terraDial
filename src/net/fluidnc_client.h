@@ -7,6 +7,7 @@
 #include <freertos/semphr.h>
 #include "machine_mode.h"
 #include "sd_file_list.h"
+#include "machine_sim.h"
 
 // Live state parsed out of FluidNC's realtime status reports
 // (`<State|MPos:...|WCO:...|FS:...|SD:pct,filename>`). Field meanings and
@@ -84,8 +85,12 @@ public:
     void hostChanged() { hostChanged_ = true; }
 
     // networkTask only. Handles mDNS resolution, (re)connection, draining
-    // the outbound command queue, and pumping received frames.
+    // the outbound command queue, and pumping received frames -- or, in
+    // demo mode (demo_mode.h), runs the simulated machine instead. Demo
+    // needs no network, so networkTask calls this regardless of Wi-Fi while
+    // demo is on or being left (inDemo()).
     void update();
+    bool inDemo() const { return demoActive_; }
 
     const FluidNCStatus &status() const { return status_; }
 
@@ -143,6 +148,15 @@ public:
 
 private:
     FluidNCStatus status_;
+
+    // Demo mode: the simulated machine stands in for the WebSocket, and
+    // its lines go through handleLine() like a real machine's.
+    MachineSim sim_;
+    bool demoActive_ = false;
+    void enterDemo();
+    void leaveDemo();
+    void demoUpdate();
+    static void simSink(void *ctx, char *line);
 
     bool wsBegun_ = false;
     volatile bool hostChanged_ = false; // set by the UI task, consumed by networkTask
