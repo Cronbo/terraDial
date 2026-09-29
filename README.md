@@ -64,7 +64,7 @@ Elecrow's factory example for this exact board rather than guessed.
 
 ### Power
 
-It's a **USB-powered device** — a single USB-C lead carries both power and,
+It's a **USB-powered device** — a single USB-A lead carries both power and,
 when you want it, the serial console and firmware flashing. There's no barrel
 jack and no separate supply to find.
 
@@ -94,7 +94,7 @@ running it.
 
 <https://theworkisthework.github.io/terraDial/>
 
-Plug the panel into a computer with a USB-C **data** cable, open that page in
+Plug the panel into a computer with a USB-A **data** cable, open that page in
 Chrome or Edge on the desktop, and click *Connect and install*. It talks to the
 panel over Web Serial and writes the whole chip — bootloader, partition table
 and app — so it also works on a board that has never been flashed, and on one
