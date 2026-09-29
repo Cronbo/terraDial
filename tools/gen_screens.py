@@ -413,18 +413,42 @@ def screen_alarm():
     return "alarm-clear", p
 
 
-def logo_mark(parts, cx, cy, size, col):
-    """A stand-in for the terraPen mark -- the real one is a single
-    continuous stroked path (see tools/gen_logo.py); this just suggests its
-    isometric line-work at README scale."""
-    u = size / 8.0
-    st = ('stroke="%s" stroke-width="1.6" fill="none" stroke-linecap="round" '
-          'stroke-linejoin="round"' % col)
-    for i in range(-2, 3):
-        x = cx + i * u
-        parts.append('<path d="M%g %g l%g %g l0 %g l%g %g" %s/>'
-                     % (x, cy - size / 2 + abs(i) * u * .5, u, u * .55,
-                        size * .45, -u, -u * .55, st))
+# The terraPen mark: theworkisthework/terrapen-identity Logo/TP-Logo-Animated.svg,
+# the same single stroked path tools/gen_logo.py rasterises for the firmware
+# (450 viewBox, stroke 3), with its whitespace collapsed.
+LOGO_D = (
+    "M168,137.6l28.5,16.4v0v65.8l28.5,16.4l0,0c0,8.8,0,24.1,0,32.9l0,0l-28.5-16.4"
+    "V302c0,10.2,5.4,19.6,14.3,24.7 l14.2,8.2v32.9v0l-28.5-16.4c-7.8-4.5-16.2-12."
+    "2-21.3-21.1c-5.2-9.1-7.2-19.4-7.2-28.2v-65.7l-28.5-16.4v-32.9l28.5,16.4L168,"
+    "137.6 L168,137.6l92.6-53.4c4.7-2.7,10.1-2.4,14.2,0l28.5,16.4l0,0c4.1,2.4,7.1"
+    ",6.8,7.1,12.3v90.5c0,5.1-1.3,9.9-3.8,14.2 c-2.4,4.2-6,7.8-10.4,10.4L225,269."
+    "1l0,16.4c0,10.2,5.4,19.7,14.3,24.8l14.2,8.2v32.9L225,367.8v0l0,0l-28.5-16.4 "
+    "c-7.8-4.5-16.2-12.2-21.3-21.1c-5.2-9.1-7.2-19.4-7.2-28.2v-65.7l-28.5-16.4v-3"
+    "2.9l28.5-16.4v16.4l-14.2-8.2l14.2-8.2L168,137.6 l14.2-8.2l28.5,16.4l0,0l0,65"
+    ".8l28.5,16.4V261l-14.2,8.2l-14.2-8.2l0,32.8c0,10.2,5.4,19.6,14.3,24.7l14.2,8"
+    ".2v32.8l14.2-8.2v-32.9 l-14.2-8.2c-8.8-5.1-14.3-14.5-14.3-24.8l0-16.4l28.5-1"
+    "6.4v-32.9L225,203.4v-32.9v-32.9l-28.5-16.4l14.2-8.2l28.5,16.4v0v32.9 l-14.2,"
+    "8.2v32.9l14.3-8.3l28.5,16.4l-0.1,0.1v32.8l14.2-8.2v-32.8l-32.3-18.7c-2.4,4.2"
+    "-6,7.8-10.3,10.3l-14.4,8.3v-32.9l28.5-16.4 l0-32.9L225,104.7l14.2-8.2l28.5,1"
+    "6.4l0,0v35v0c-2.4,0-4.8,0.6-7.1,1.9l-7.2,4.2v16.5v0c0,5-1.3,9.9-3.8,14.1l32."
+    "3,18.7l0-41.4 c-0.1-10.8-11.9-17.5-21.3-12.1l-7.2,4.2v16.5l28.5,16.4v-16.6l-"
+    "28.5-16.4l7.2-4.2c9.4-5.4,21.1,1.3,21.3,12.1v-57.3l-28.5-16.4"
+    "l7.1-4.1c4.7-2.7,10.1-2.4,14.2,0l21.4,12.3l0.1,131.5"
+)
+LOGO_VIEWBOX = 450.0
+
+
+def logo_mark(parts, cx, cy, box, col):
+    """The logo image the firmware shows (icon_logo, box x box px, centred on
+    cx, cy). The stroke gets gen_logo.py's MIN_STROKE_PX floor, since the
+    print artwork's 3 units scale to under a pixel at panel size."""
+    k = box / LOGO_VIEWBOX
+    stroke_px = max(1.5, 3.0 * k)
+    parts.append(
+        '<path transform="translate(%g %g) scale(%g)" d="%s" fill="none" stroke="%s" '
+        'stroke-width="%g" stroke-linecap="round" stroke-linejoin="round"/>'
+        % (cx - box / 2.0, cy - box / 2.0, k, LOGO_D, col, stroke_px / k)
+    )
 
 
 def qr_block(parts, x, y, size, modules=21):
@@ -453,7 +477,7 @@ def screen_about():
     p = []
     head(p)
     text(p, 120, 46, "ABOUT", 12, ACCENT_SECONDARY, "600")
-    logo_mark(p, 120, 86, 44, TEXT)
+    logo_mark(p, 120, 84, 64, TEXT)
     text(p, 120, 120, "terraPen", 16, TEXT, "600")
     text(p, 120, 138, "terrapen.xyz", 12, ACCENT)
     qr_block(p, 88, 152, 64)
@@ -464,7 +488,7 @@ def screen_about():
 def screen_brand():
     p = []
     head(p)
-    logo_mark(p, 120, 104, 96, TEXT)
+    logo_mark(p, 120, 102, 128, TEXT)
     text(p, 120, 182, "terraPen", 16, TEXT, "600")
     text(p, 120, 204, "terrapen.xyz", 12, ACCENT)
     tail(p)
