@@ -42,13 +42,10 @@
 #define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())
 #define LV_DPI_DEF 130
 
-// How far a finger may travel during a press before LVGL reclassifies it as
-// a scroll gesture and never emits CLICKED. The 10px default is tuned for
-// phone-sized screens with a stylus-ish touch; on a 240x240 round panel a
-// fingertip covers a big fraction of a button and rolls several px on a
-// normal tap, so taps were being silently swallowed as scrolls (felt like
-// "I pressed it and nothing happened"). 30px makes taps far more forgiving.
-#define LV_INDEV_DEF_SCROLL_LIMIT 30
+// The touch scroll limit (how far a tap may roll before it becomes a
+// scroll) is set on the touch driver in main.cpp, not here: LVGL 8's
+// lv_hal_indev.h redefines LV_INDEV_DEF_SCROLL_LIMIT unconditionally, so a
+// value set in this file is overridden everywhere it's used.
 
 /*=======================
  * FEATURE CONFIGURATION

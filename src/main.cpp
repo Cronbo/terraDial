@@ -175,6 +175,18 @@ static void initTouchAndDisplay()
     lv_indev_drv_init(&indevDrv);
     indevDrv.type = LV_INDEV_TYPE_POINTER;
     indevDrv.read_cb = touchpadRead;
+    // How far a finger may travel during a press before LVGL reclassifies
+    // it as a scroll gesture and never emits CLICKED. The 10px default is
+    // tuned for phone-sized screens with a stylus-ish touch; on a 240x240
+    // round panel a fingertip covers a big fraction of a button and rolls
+    // several px on a normal tap, so taps were being silently swallowed as
+    // scrolls (felt like "I pressed it and nothing happened"). 30px makes
+    // taps far more forgiving.
+    //
+    // Set here rather than as LV_INDEV_DEF_SCROLL_LIMIT in lv_conf.h: LVGL 8
+    // redefines that macro unconditionally in lv_hal_indev.h, so the lv_conf
+    // value never reached lv_indev_drv_init() and the driver stayed at 10.
+    indevDrv.scroll_limit = 30;
     lv_indev_drv_register(&indevDrv);
 }
 
