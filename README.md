@@ -92,7 +92,7 @@ running it.
 
 ### First install — the web installer
 
-<https://warderoid-ctrl.github.io/terraDial/>
+<https://theworkisthework.github.io/terraDial/>
 
 Plug the panel into a computer with a USB-C **data** cable, open that page in
 Chrome or Edge on the desktop, and click *Connect and install*. It talks to the
