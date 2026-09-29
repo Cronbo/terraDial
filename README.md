@@ -43,11 +43,11 @@ also drive).
 
 | | | |
 |:--:|:--:|:--:|
-| <img src="docs/screens/home-dial.svg" width="180"><br>**Home** — 8 destinations, E‑Stop always red | <img src="docs/screens/jobs.svg" width="180"><br>**Jobs** — SD files on an open arc | <img src="docs/screens/jog.svg" width="180"><br>**Jog** — axis, position, per‑axis zero |
-| <img src="docs/screens/job-progress.svg" width="180"><br>**Job progress** — elapsed, and time left | <img src="docs/screens/pen.svg" width="180"><br>**Pen** — up / down | <img src="docs/screens/home-confirm.svg" width="180"><br>**Home XY** — clear‑the‑bed gate |
-| <img src="docs/screens/lights.svg" width="180"><br>**Lights** — terraPixel rail control | <img src="docs/screens/settings-ring.svg" width="180"><br>**Settings** — four categories | <img src="docs/screens/settings-display.svg" width="180"><br>**Display** — brightness, sleep |
-| <img src="docs/screens/radial-keyboard.svg" width="180"><br>**Radial keyboard** — knob‑first text entry | <img src="docs/screens/estop.svg" width="180"><br>**E‑Stop** — feed hold + soft reset | <img src="docs/screens/alarm-clear.svg" width="180"><br>**Alarm clear** — appears on alarm |
-| <img src="docs/screens/about.svg" width="180"><br>**About** — identity, QR links, diagnostics | <img src="docs/screens/idle-brand.svg" width="180"><br>**Idle** — the mark, before sleep | |
+| <img src="docs/screens/home-dial.svg?v=2" width="180"><br>**Home** — 8 destinations, E‑Stop always red | <img src="docs/screens/jobs.svg?v=2" width="180"><br>**Jobs** — SD files on an open arc | <img src="docs/screens/jog.svg?v=2" width="180"><br>**Jog** — axis, position, per‑axis zero |
+| <img src="docs/screens/job-progress.svg?v=2" width="180"><br>**Job progress** — elapsed, and time left | <img src="docs/screens/pen.svg?v=2" width="180"><br>**Pen** — up / down | <img src="docs/screens/home-confirm.svg?v=2" width="180"><br>**Home XY** — clear‑the‑bed gate |
+| <img src="docs/screens/lights.svg?v=2" width="180"><br>**Lights** — terraPixel rail control | <img src="docs/screens/settings-ring.svg?v=2" width="180"><br>**Settings** — four categories | <img src="docs/screens/settings-display.svg?v=2" width="180"><br>**Display** — brightness, sleep |
+| <img src="docs/screens/radial-keyboard.svg?v=2" width="180"><br>**Radial keyboard** — knob‑first text entry | <img src="docs/screens/estop.svg?v=2" width="180"><br>**E‑Stop** — feed hold + soft reset | <img src="docs/screens/alarm-clear.svg?v=2" width="180"><br>**Alarm clear** — appears on alarm |
+| <img src="docs/screens/about.svg?v=2" width="180"><br>**About** — identity, QR links, diagnostics | <img src="docs/screens/idle-brand.svg?v=2" width="180"><br>**Idle** — the mark, before sleep | |
 
 ## Hardware
 
