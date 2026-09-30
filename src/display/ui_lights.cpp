@@ -124,6 +124,7 @@ lv_obj_t *uiLightsCreate()
 void uiLightsHandleRotate(int32_t delta)
 {
     if (!lightsPanel || delta == 0) return;
+    if (uiSliderHandleRotate(delta)) return;
     // Same step as a Settings category panel so scrolling feels identical
     // wherever the knob is scrolling a page rather than stepping a ring.
     lv_obj_scroll_by(lightsPanel, 0, -delta * 24, LV_ANIM_ON);

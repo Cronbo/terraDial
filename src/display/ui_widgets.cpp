@@ -2,6 +2,29 @@
 #include "lucide_icons.h"
 #include "palette.h"
 
+namespace
+{
+    lv_obj_t *focusedSlider = nullptr;
+
+    void setSliderFocus(lv_obj_t *slider)
+    {
+        if (focusedSlider == slider)
+        {
+            lv_obj_clear_state(focusedSlider, LV_STATE_FOCUSED);
+            focusedSlider = nullptr;
+            return;
+        }
+        if (focusedSlider) lv_obj_clear_state(focusedSlider, LV_STATE_FOCUSED);
+        focusedSlider = slider;
+        lv_obj_add_state(focusedSlider, LV_STATE_FOCUSED);
+    }
+
+    void sliderTapCb(lv_event_t *e)
+    {
+        setSliderFocus((lv_obj_t *)lv_event_get_user_data(e));
+    }
+}
+
 lv_obj_t *uiMakeRow(lv_obj_t *parent, const char *labelText, lv_obj_t **outLabel)
 {
     lv_obj_t *row = lv_obj_create(parent);
@@ -77,9 +100,47 @@ lv_obj_t *uiMakeSlider(lv_obj_t *parent, int32_t min, int32_t max, int32_t value
     // Handle -- white on the red reads clearly and matches accentFg usage
     lv_obj_set_style_bg_color(slider, Palette::accentFg(), LV_PART_KNOB);
     lv_obj_set_style_pad_all(slider, 4, LV_PART_KNOB);
+    lv_obj_set_style_border_width(slider, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(slider, 1, LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(slider, Palette::accentSecondary(), LV_PART_MAIN | LV_STATE_FOCUSED);
     // Extends the touch area past the 10px track without drawing bigger.
     lv_obj_set_ext_click_area(slider, 8);
+    lv_obj_add_event_cb(slider, sliderTapCb, LV_EVENT_CLICKED, slider);
+
+    // uiMakeRow() puts its title first; make it another target for selecting
+    // this slider, including titles whose text is updated as the value moves.
+    lv_obj_t *label = lv_obj_get_child(parent, 0);
+    if (label && lv_obj_check_type(label, &lv_label_class))
+    {
+        lv_obj_add_flag(label, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(label, sliderTapCb, LV_EVENT_CLICKED, slider);
+    }
     return slider;
+}
+
+bool uiSliderHandleRotate(int32_t delta)
+{
+    if (!focusedSlider || delta == 0) return focusedSlider != nullptr;
+
+    int32_t current = lv_slider_get_value(focusedSlider);
+    int64_t value = (int64_t)current + delta;
+    int32_t min = lv_slider_get_min_value(focusedSlider);
+    int32_t max = lv_slider_get_max_value(focusedSlider);
+    if (value < min) value = min;
+    if (value > max) value = max;
+    if (value != current)
+    {
+        lv_slider_set_value(focusedSlider, (int32_t)value, LV_ANIM_OFF);
+        lv_event_send(focusedSlider, LV_EVENT_RELEASED, nullptr);
+    }
+    return true;
+}
+
+void uiSliderClearFocus()
+{
+    if (!focusedSlider) return;
+    lv_obj_clear_state(focusedSlider, LV_STATE_FOCUSED);
+    focusedSlider = nullptr;
 }
 
 lv_obj_t *uiMakeSwitch(lv_obj_t *parent, bool checked)

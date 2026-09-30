@@ -941,6 +941,7 @@ namespace
     // ---- category ring ----
     void showRing()
     {
+        uiSliderClearFocus();
         // A finished check is only meaningful while you're looking at it --
         // reopening About half an hour later shouldn't greet you with
         // "You're up to date" that was true on a different network.
@@ -955,6 +956,7 @@ namespace
     void openCategory(int index)
     {
         if (index < 0 || index >= CATEGORY_COUNT) return;
+        uiSliderClearFocus();
         ring.setVisible(false);
         lv_obj_add_flag(hub, LV_OBJ_FLAG_HIDDEN);
         openPanel = index;
@@ -1122,6 +1124,7 @@ void uiSettingsHandleRotate(int32_t delta)
     }
     if (openPanel >= 0)
     {
+        if (uiSliderHandleRotate(delta)) return;
         // Inside a category the knob scrolls its controls -- several of the
         // panels are taller than the round-safe area.
         lv_obj_scroll_by(panels[openPanel], 0, -delta * 24, LV_ANIM_ON);

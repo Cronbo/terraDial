@@ -11,6 +11,7 @@
 #include "ui_estop.h"
 #include "ui_alarm_clear.h"
 #include "ui_park.h"
+#include "ui_widgets.h"
 #include "../input/encoder.h"
 #include "radial_keyboard.h"
 #include "screen_sleep.h"
@@ -51,6 +52,7 @@ namespace
     void goTo(int index, lv_scr_load_anim_t anim)
     {
         if (currentIndex == index) return;
+        uiSliderClearFocus();
         if (currentIndex == JOB_PROGRESS_SCREEN_INDEX) jobFlowActive = false;
         currentIndex = index;
         lv_scr_load_anim(screens[currentIndex], anim, 120, 0, false); // was 180 -- snappier screen switching

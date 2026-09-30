@@ -30,6 +30,10 @@ lv_obj_t *uiMakePanel(lv_obj_t *parent, const char *title);
 // the only places still showing stock widgets. Create controls through
 // these instead of lv_slider_create/lv_switch_create directly.
 lv_obj_t *uiMakeSlider(lv_obj_t *parent, int32_t min, int32_t max, int32_t value);
+// A tap on a slider or its row label selects it for rotary adjustment.
+// Tapping the selected control again clears the selection.
+bool uiSliderHandleRotate(int32_t delta);
+void uiSliderClearFocus();
 lv_obj_t *uiMakeSwitch(lv_obj_t *parent, bool checked);
 // Full-width accent pill with a centered label. outLabel receives the label
 // so callers can retitle it later.
